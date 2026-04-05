@@ -203,7 +203,8 @@
               <div>
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">CPF*</label>
                 <input 
-                  v-model="form.cpf" type="text" required
+                  v-model="form.cpf" type="text" required maxlength="14"
+                  @input="handleCpfInput"
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
                   placeholder="000.000.000-00"
                 />
@@ -219,15 +220,24 @@
                 />
               </div>
               
-              <!-- PASSWORD (Apenas Criação ou Troca Forçada) -->
-              <div v-if="!isEditing" class="col-span-1 md:col-span-2">
+              <!-- PASSWORD E CONFIRM (Apenas Criação ou Troca Forçada) -->
+              <div v-if="!isEditing" class="col-span-1">
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Senha Inicial de Autenticação*</label>
                 <input 
                   v-model="form.password" type="password" :required="!isEditing"
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
                   placeholder="Mínimo de 8 caracteres"
                 />
-                <p class="text-xs text-[var(--text-muted)] mt-1 opacity-70">Necessário para o primeiro login da conta do colaborador.</p>
+                <p class="text-xs text-[var(--text-muted)] mt-1 opacity-70">Sua senha deve ser segura.</p>
+              </div>
+              
+              <div v-if="!isEditing" class="col-span-1">
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Confirmar Senha*</label>
+                <input 
+                  v-model="form.password_confirm" type="password" :required="!isEditing"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-rose)] transition-colors" 
+                  placeholder="Repita a senha"
+                />
               </div>
 
               <!-- HIERARQUIA CORPORATIVA -->
@@ -279,7 +289,8 @@
                      <div>
                         <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Telefone / Rádio</label>
                         <input 
-                        v-model="form.phone" type="text"
+                        v-model="form.phone" type="text" maxlength="15"
+                        @input="handlePhoneInput"
                         class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
                         placeholder="(11) 90000-0000"
                         />
@@ -320,12 +331,42 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const viewMode = ref('list')
 
+const applyCpfMask = (value) => {
+  let v = value.replace(/\D/g, '')
+  if (v.length > 11) v = v.substring(0, 11)
+  
+  if (v.length <= 3) return v
+  if (v.length <= 6) return `${v.substring(0, 3)}.${v.substring(3)}`
+  if (v.length <= 9) return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6)}`
+  return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6, 9)}-${v.substring(9)}`
+}
+
+const applyPhoneMask = (value) => {
+  let v = value.replace(/\D/g, '')
+  if (v.length > 11) v = v.substring(0, 11)
+  
+  if (v.length === 0) return ''
+  if (v.length <= 2) return `(${v}`
+  if (v.length <= 6) return `(${v.substring(0, 2)}) ${v.substring(2)}`
+  if (v.length <= 10) return `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`
+  return `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`
+}
+
+const handleCpfInput = (e) => {
+  form.value.cpf = applyCpfMask(e.target.value)
+}
+
+const handlePhoneInput = (e) => {
+  form.value.phone = applyPhoneMask(e.target.value)
+}
+
 const defaultForm = {
   id: null,
   name: '',
   cpf: '',
   email: '',
-  password: '', // só usado na hora de criação usualmente
+  password: '', 
+  password_confirm: '',
   phone: '',
   department: '',
   system_role: 'TECHNICIAN',
@@ -379,7 +420,7 @@ const openCreateModal = () => {
 const openEditModal = (userPayload) => {
   isEditing.value = true
   // omitimos a senha aqui pro form não ficar maluco
-  const { password, ...safeUser } = userPayload
+  const { password, password_confirm, ...safeUser } = userPayload
   form.value = { ...defaultForm, ...safeUser }
   showModal.value = true
 }
@@ -390,20 +431,32 @@ const closeModal = () => {
 
 const saveUser = async () => {
   try {
-    // Clonamos sem mandar campos vazios indesejados
     const payload = { ...form.value }
     if (isEditing.value) {
-       delete payload.password // se houver rota separada para reset de senha
+       delete payload.password 
+       delete payload.password_confirm
        await api.put(`users/${payload.id}/`, payload)
     } else {
-       // Na criação, usa tudo
+       // Na criação envia todos
+       if (payload.password !== payload.password_confirm) {
+           alert("As senhas não conferem!")
+           return
+       }
+       payload.username = payload.email
        await api.post('users/', payload)
     }
     
     closeModal()
     fetchUsers()
   } catch (err) {
-    alert('Os dados não foram salvos. Verifique se o E-mail ou CPF já estão vinculados a outra conta ou se você não possui os privilégios máximos necessários.')
+    console.error(err)
+    const errorMsg = err.response?.data?.detail || 
+                     err.response?.data?.password_confirm?.[0] || 
+                     err.response?.data?.username?.[0] ||
+                     err.response?.data?.cpf?.[0] ||
+                     err.response?.data?.email?.[0] ||
+                     (err.response?.data ? JSON.stringify(err.response.data) : 'Erro desconhecido ao salvar os dados.')
+    alert(`Erro ao salvar: ${errorMsg}`)
   }
 }
 

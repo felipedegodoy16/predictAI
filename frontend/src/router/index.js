@@ -10,6 +10,12 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/esqueci-minha-senha',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPasswordView.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/',
       name: 'layout',
       component: () => import('../components/layouts/MainLayout.vue'),

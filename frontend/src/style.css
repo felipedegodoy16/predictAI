@@ -30,6 +30,7 @@
     --text-main: var(--color-vintage-charcoal);
     --text-muted: #5e5757;
     --border-color: #e2dac9;
+    --color-interaction: #8b7355;
   }
 
   :root.dark {
@@ -38,6 +39,7 @@
     --text-main: var(--color-vintage-paper);
     --text-muted: #9c9588;
     --border-color: #383434;
+    --color-interaction: #e2dac9;
   }
 
   body {
@@ -69,4 +71,23 @@
   .vintage-btn-outline {
     @apply border-2 border-[var(--border-color)] text-[var(--text-main)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--bg-card)] active:scale-95 transition-all;
   }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

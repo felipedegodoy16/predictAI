@@ -257,110 +257,112 @@
     </div>
 
     <!-- CREATE/EDIT MODAL OVERLAY -->
-    <div v-if="showModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
-      
-      <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-[61] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <Teleport to="body">
+      <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
         
-        <!-- Header -->
-        <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)] shrink-0">
-          <div>
-            <h2 class="text-xl font-bold tracking-tight text-[var(--text-main)]">{{ isEditing ? 'Editar Especificações' : 'Nova Máquina na Planta' }}</h2>
-            <p class="text-xs text-[var(--text-muted)] font-bold mt-1">Preencha os dados do equipamento de operação.</p>
+        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-[101] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
+          <!-- Header -->
+          <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)] shrink-0">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight text-[var(--text-main)]">{{ isEditing ? 'Editar Especificações' : 'Nova Máquina na Planta' }}</h2>
+              <p class="text-xs text-[var(--text-muted)] font-bold mt-1">Preencha os dados do equipamento de operação.</p>
+            </div>
+            <button @click="closeModal" class="p-2 hover:bg-[var(--bg-card)] rounded-lg transition-colors">
+              <X class="w-5 h-5 text-[var(--text-muted)]" />
+            </button>
           </div>
-          <button @click="closeModal" class="p-2 hover:bg-[var(--bg-card)] rounded-lg transition-colors">
-            <X class="w-5 h-5 text-[var(--text-muted)]" />
-          </button>
+
+          <!-- Body Form -->
+          <form @submit.prevent="saveMachine" class="p-6 overflow-y-auto flex-1 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- NOME -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Identificação Principal (Nome)*</label>
+                <input 
+                  v-model="form.name" type="text" required
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="Ex: Torno CNC D-400"
+                />
+              </div>
+              
+              <!-- SERIAL -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nº de Série*</label>
+                <input 
+                  v-model="form.serial_number" type="text" required
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="ABC-12345"
+                />
+              </div>
+
+              <!-- STATUS -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Status Operacional</label>
+                <select v-model="form.status" class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] font-bold focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors">
+                  <option value="ACTIVE">Ativa (Operando)</option>
+                  <option value="MAINTENANCE">Manutenção Pendente</option>
+                  <option value="INACTIVE">Inativa (Desligada)</option>
+                </select>
+              </div>
+
+              <!-- MANUFACTURER -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Fabricante</label>
+                <input 
+                  v-model="form.manufacturer" type="text"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="Siemens, Bosch, etc."
+                />
+              </div>
+
+              <!-- MODEL -->
+              <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Modelo Técnico</label>
+                <input 
+                  v-model="form.model" type="text"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="R-X500v2"
+                />
+              </div>
+
+              <!-- LOCATION -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Localização (Setor)</label>
+                <input 
+                  v-model="form.location" type="text"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="Setor de Usinagem, Linha de Montagem A"
+                />
+              </div>
+
+               <!-- DESC -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Descrição Adicional / Observações</label>
+                <textarea 
+                  v-model="form.description" rows="3"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors resize-none" 
+                  placeholder="Observações mecânicas cruciais para o monitoramento..."
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4 pt-4 border-t border-[var(--border-color)]">
+              <button type="button" @click="closeModal" class="flex-1 py-3 border-2 border-[var(--border-color)] text-[var(--text-muted)] font-bold text-sm rounded-xl hover:bg-[var(--bg-app)] hover:text-[var(--text-main)] transition-colors">
+                Cancelar
+              </button>
+              <button type="submit" class="flex-1 py-3 bg-[var(--color-vintage-mint)] text-white font-bold text-sm rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                <Save class="w-4 h-4" />
+                {{ isEditing ? 'Salvar Mudanças' : 'Cadastrar Equipamento' }}
+              </button>
+            </div>
+          </form>
+
         </div>
-
-        <!-- Body Form -->
-        <form @submit.prevent="saveMachine" class="p-6 overflow-y-auto flex-1 space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- NOME -->
-            <div class="col-span-1 md:col-span-2">
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Identificação Principal (Nome)*</label>
-              <input 
-                v-model="form.name" type="text" required
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                placeholder="Ex: Torno CNC D-400"
-              />
-            </div>
-            
-            <!-- SERIAL -->
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nº de Série*</label>
-              <input 
-                v-model="form.serial_number" type="text" required
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                placeholder="ABC-12345"
-              />
-            </div>
-
-            <!-- STATUS -->
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Status Operacional</label>
-              <select v-model="form.status" class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] font-bold focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors">
-                <option value="ACTIVE">Ativa (Operando)</option>
-                <option value="MAINTENANCE">Manutenção Pendente</option>
-                <option value="INACTIVE">Inativa (Desligada)</option>
-              </select>
-            </div>
-
-            <!-- MANUFACTURER -->
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Fabricante</label>
-              <input 
-                v-model="form.manufacturer" type="text"
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                placeholder="Siemens, Bosch, etc."
-              />
-            </div>
-
-            <!-- MODEL -->
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Modelo Técnico</label>
-              <input 
-                v-model="form.model" type="text"
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                placeholder="R-X500v2"
-              />
-            </div>
-
-            <!-- LOCATION -->
-            <div class="col-span-1 md:col-span-2">
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Localização (Setor)</label>
-              <input 
-                v-model="form.location" type="text"
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                placeholder="Setor de Usinagem, Linha de Montagem A"
-              />
-            </div>
-
-             <!-- DESC -->
-            <div class="col-span-1 md:col-span-2">
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Descrição Adicional / Observações</label>
-              <textarea 
-                v-model="form.description" rows="3"
-                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors resize-none" 
-                placeholder="Observações mecânicas cruciais para o monitoramento..."
-              ></textarea>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex gap-4 pt-4 border-t border-[var(--border-color)]">
-            <button type="button" @click="closeModal" class="flex-1 py-3 border-2 border-[var(--border-color)] text-[var(--text-muted)] font-bold text-sm rounded-xl hover:bg-[var(--bg-app)] hover:text-[var(--text-main)] transition-colors">
-              Cancelar
-            </button>
-            <button type="submit" class="flex-1 py-3 bg-[var(--color-vintage-mint)] text-white font-bold text-sm rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-              <Save class="w-4 h-4" />
-              {{ isEditing ? 'Salvar Mudanças' : 'Cadastrar Equipamento' }}
-            </button>
-          </div>
-        </form>
-
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 

@@ -92,196 +92,200 @@
           <v-chart class="chart" :option="getChartOption(widget)" :update-options="{ notMerge: true }" autoresize />
         </div>
       </div>
-    </TransitionGroup>
+    </T    <!-- WIDGET MANAGER MODAL OVERLAY -->
+    <Teleport to="body">
+      <div v-if="showWidgetManager" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showWidgetManager = false"></div>
+        
+        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col relative z-[101] shadow-2xl overflow-hidden animate-in fade-in zoom-in-100 duration-300">
+          <!-- Header -->
+          <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)] shrink-0">
+            <h2 class="text-2xl font-bold tracking-tight">Análise Preditiva e Dashboards</h2>
+            <button @click="showWidgetManager = false" class="p-2 hover:bg-[var(--bg-card)] rounded-lg transition-colors">
+              <X class="w-6 h-6 text-[var(--text-muted)]" />
+            </button>
+          </div>
 
-    <!-- WIDGET MANAGER MODAL OVERLAY -->
-    <div v-if="showWidgetManager" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showWidgetManager = false"></div>
-      
-      <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col relative z-20 shadow-2xl overflow-hidden animate-in fade-in zoom-in-100 duration-300">
-        <!-- Header -->
-        <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)] shrink-0">
-          <h2 class="text-2xl font-bold tracking-tight">Análise Preditiva e Dashboards</h2>
-          <button @click="showWidgetManager = false" class="p-2 hover:bg-[var(--bg-card)] rounded-lg transition-colors">
-            <X class="w-6 h-6 text-[var(--text-muted)]" />
-          </button>
-        </div>
-
-        <!-- Body -->
-        <div class="p-6 overflow-y-auto flex-1 flex flex-col gap-8 md:grid md:grid-cols-12 md:gap-8 min-h-0">
-          
-          <!-- LEFT SIDE: LIST OF ALL WIDGETS -->
-          <div class="flex flex-col gap-6 border-[var(--border-color)] md:border-r md:pr-8 md:col-span-5">
-            <section>
-              <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
-                <ShieldCheck class="w-5 h-5 text-[var(--color-vintage-mint)]" />
-                Gráficos Nativos
-              </h3>
-              
-              <div class="flex flex-col gap-2">
-                <div v-for="dw in widgets.filter(w => w.isDefault)" :key="'manage-'+dw.id" class="p-3 rounded-xl border border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)]/50">
-                  <div class="flex items-center gap-3">
-                    <div class="w-3 h-3 rounded-full" :class="dw.isVisible ? 'bg-[var(--color-vintage-mint)]' : 'bg-[var(--text-muted)]'"></div>
-                    <span class="font-bold text-sm truncate max-w-[150px]">{{ dw.title }}</span>
+          <!-- Body -->
+          <div class="p-6 overflow-y-auto flex-1 flex flex-col gap-8 md:grid md:grid-cols-12 md:gap-8 min-h-0">
+            
+            <!-- LEFT SIDE: LIST OF ALL WIDGETS -->
+            <div class="flex flex-col gap-6 border-[var(--border-color)] md:border-r md:pr-8 md:col-span-5">
+              <section>
+                <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+                  <ShieldCheck class="w-5 h-5 text-[var(--color-vintage-mint)]" />
+                  Gráficos Nativos
+                </h3>
+                
+                <div class="flex flex-col gap-2">
+                  <div v-for="dw in widgets.filter(w => w.isDefault)" :key="'manage-'+dw.id" class="p-3 rounded-xl border border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)]/50">
+                    <div class="flex items-center gap-3">
+                      <div class="w-3 h-3 rounded-full" :class="dw.isVisible ? 'bg-[var(--color-vintage-mint)]' : 'bg-[var(--text-muted)]'"></div>
+                      <span class="font-bold text-sm truncate max-w-[150px]">{{ dw.title }}</span>
+                    </div>
+                    <button 
+                      @click="dw.isVisible = !dw.isVisible; saveWidgets()"
+                      class="px-2 py-1 rounded text-xs font-bold transition-colors w-24 text-center"
+                      :class="dw.isVisible ? 'bg-[var(--color-vintage-charcoal)]/10 text-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)]/10 dark:text-[var(--color-vintage-paper)]' : 'bg-[var(--color-vintage-mint)] text-white'"
+                    >
+                      {{ dw.isVisible ? 'OCULTAR' : 'ATIVAR' }}
+                    </button>
                   </div>
-                  <button 
-                    @click="dw.isVisible = !dw.isVisible; saveWidgets()"
-                    class="px-2 py-1 rounded text-xs font-bold transition-colors w-24 text-center"
-                    :class="dw.isVisible ? 'bg-[var(--color-vintage-charcoal)]/10 text-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)]/10 dark:text-[var(--color-vintage-paper)]' : 'bg-[var(--color-vintage-mint)] text-white'"
-                  >
-                    {{ dw.isVisible ? 'OCULTAR' : 'ATIVAR' }}
+                </div>
+              </section>
+
+              <section>
+                <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+                  <LayoutTemplate class="w-5 h-5 text-[var(--color-vintage-mustard)]" />
+                  Seus Gráficos
+                </h3>
+                
+                <div class="flex flex-col gap-2">
+                  <div v-if="widgets.filter(w => !w.isDefault).length === 0" class="text-sm font-medium text-[var(--text-muted)] italic p-4 text-center border overflow-hidden rounded-xl bg-[var(--bg-app)]/20 border-dashed">
+                    Você ainda não criou os seus painéis.<br>Preencha o formulário ao lado!
+                  </div>
+                  <!-- Custom Items -->
+                  <div v-for="cw in widgets.filter(w => !w.isDefault)" :key="'manage-'+cw.id" class="p-3 rounded-xl border border-[var(--color-vintage-mustard)]/30 flex justify-between items-center bg-[var(--bg-app)]/50" :class="{'ring-2 ring-[var(--color-vintage-mint)]' : editingWidgetId === cw.id}">
+                    <div class="flex items-center gap-3">
+                      <div class="w-3 h-3 rounded-full" :class="cw.isVisible ? 'bg-[var(--color-vintage-mint)]' : 'bg-[var(--text-muted)]'"></div>
+                      <span class="font-bold text-sm truncate max-w-[90px]">{{ cw.title }}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <button @click="editWidgetInModal(cw)" title="Editar" class="p-1.5 rounded hover:bg-[var(--color-vintage-mustard)]/20 text-[var(--color-vintage-mustard)] transition-colors">
+                        <Edit3 class="w-4 h-4" />
+                      </button>
+                      <button @click="deleteWidget(cw.id)" title="Deletar" class="p-1.5 rounded hover:bg-red-500/20 text-red-500 transition-colors">
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                      <button 
+                        @click="cw.isVisible = !cw.isVisible; saveWidgets()"
+                        class="px-2 py-1 rounded text-xs font-bold transition-colors w-[65px] text-center ml-1"
+                        :class="cw.isVisible ? 'bg-[var(--color-vintage-charcoal)]/10 text-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)]/10 dark:text-[var(--color-vintage-paper)]' : 'bg-[var(--color-vintage-mint)] text-white'"
+                      >
+                        {{ cw.isVisible ? 'OCULTAR' : 'ATIVAR' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- RIGHT SIDE: CREATOR WIZARD -->
+            <div class="flex flex-col md:col-span-7">
+               <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <Sparkles class="w-5 h-5 text-[var(--color-vintage-mint)]" />
+                {{ editingWidgetId ? 'Editando Gráfico' : 'Montagem Prática Avançada' }}
+              </h3>
+              <p class="text-sm text-[var(--text-muted)] font-medium mb-4">Aproveite todo o poder de renderização nativa da nossa plataforma preditiva com dezenas de visualizações disponíveis.</p>
+              
+              <form @submit.prevent="saveCustomWidget" class="bg-[var(--color-vintage-charcoal)]/5 dark:bg-[var(--color-vintage-paper)]/5 p-6 rounded-2xl border border-[var(--border-color)] space-y-6 flex-1 shadow-inner">
+                
+                <!-- Título -->
+                <div>
+                  <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nome do Gráfico / Análise</label>
+                  <input 
+                    v-model="newWidgetForm.title"
+                    type="text" 
+                    required
+                    class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                    placeholder="Ex: Dispersão Térmica Geral..."
+                  />
+                </div>
+
+                <!-- Type & Metric -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                     <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Estrutura Visual ECharts</label>
+                     <select v-model="newWidgetForm.type" required class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors font-semibold">
+                       <optgroup label="Tabelas Evolutivas/Linhas">
+                          <option value="line">Linha Suave (Única Métrica)</option>
+                          <option value="line_compare">Linha Dupla (Contraste de 2 Métricas)</option>
+                       </optgroup>
+                       <optgroup label="Comparativos / Barras">
+                          <option value="bar">Barras Simples</option>
+                          <option value="bar_stacked">Barras Empilhadas (Mix Proporcional)</option>
+                       </optgroup>
+                       <optgroup label="Modelos Complexos Multi-variados">
+                          <option value="pie">Gráfico de Pizza (Composição)</option>
+                          <option value="radar">Polígono Radar (Multidimensional)</option>
+                          <option value="scatter">Gráfico de Dispersão (Anomalias)</option>
+                          <option value="gauge">Velocímetro (Indicador de Ponteiro)</option>
+                       </optgroup>
+                     </select>
+                  </div>
+                  <div>
+                     <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Indicador Paramétrico</label>
+                     <select v-model="newWidgetForm.metric" required class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mustard)] transition-colors font-semibold">
+                       <option value="temp">Sobreaquecimento / Térmica</option>
+                       <option value="vib">Desgaste Mecânico / Vibração</option>
+                       <option value="cost">Custos Operacionais Brutos</option>
+                       <option value="energy">Consumo Eletromagnético (KWh)</option>
+                       <option value="prod">Quedas de Produção em Lotes</option>
+                     </select>
+                  </div>
+                </div>
+
+                <!-- Span -->
+                <div>
+                  <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Layout do Contêiner</label>
+                  <select v-model="newWidgetForm.span" class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none">
+                    <option :value="1">Modo Retrato (1/3 da Tela)</option>
+                    <option :value="2">Modo Paisagem (2/3 da Tela)</option>
+                    <option :value="3">Modo Panorama (Toma a linha inteira)</option>
+                  </select>
+                </div>
+
+                <!-- Colors -->
+                <div>
+                  <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">Tonalidade Predominante Visual</label>
+                  <div class="flex flex-wrap gap-4 items-center">
+                    <!-- Default Palette -->
+                    <label v-for="(colorHex, colorName) in availableColors" :key="'col-'+colorName" class="cursor-pointer relative">
+                      <input type="radio" v-model="newWidgetForm.color" :value="colorName" class="peer sr-only" name="customColor" />
+                      <div class="w-10 h-10 rounded-full border-[3px] border-transparent peer-checked:scale-110 peer-checked:shadow-xl transition-all flex items-center justify-center hover:opacity-80" :style="{ backgroundColor: colorHex, borderColor: newWidgetForm.color === colorName ? 'var(--text-main)' : 'transparent' }">
+                        <Check v-if="newWidgetForm.color === colorName" class="w-5 h-5 text-white" />
+                      </div>
+                    </label>
+
+                    <!-- FREE CUSTOM COLOR PIPETTE -->
+                    <label class="cursor-pointer relative flex items-center gap-2 group">
+                      <input type="radio" v-model="newWidgetForm.color" value="Custom" class="peer sr-only" name="customColor" />
+                      <div class="w-10 h-10 rounded-full border-[3px] border-transparent peer-checked:scale-110 peer-checked:shadow-xl transition-all flex items-center justify-center overflow-hidden hover:opacity-80 relative" :style="{ borderColor: newWidgetForm.color === 'Custom' ? 'var(--text-main)' : 'transparent', background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }">
+                         <Check v-if="newWidgetForm.color === 'Custom'" class="w-5 h-5 text-white drop-shadow-md z-10 pointer-events-none" />
+                      </div>
+                      <!-- The actual input that controls HEX -->
+                      <input 
+                        v-if="newWidgetForm.color === 'Custom'" 
+                        type="color" 
+                        v-model="newWidgetForm.customHex" 
+                        class="w-12 h-10 p-0 border border-[var(--border-color)] rounded-lg cursor-pointer bg-transparent animate-in zoom-in ml-1" 
+                        title="Escolha qualquer cor da paleta"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Submit / Cancel -->
+                <div class="flex gap-4 pt-4">
+                  <button v-if="editingWidgetId" type="button" @click="cancelEdit" class="flex-1 border-2 border-[var(--border-color)] text-[var(--text-muted)] font-bold text-sm h-12 rounded-xl hover:bg-[var(--bg-app)] hover:text-[var(--text-main)] transition-colors">
+                    Cancelar Edição
+                  </button>
+                  <button type="submit" class="flex-2 w-full flex justify-center items-center gap-2 font-bold text-[15px] h-12 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md" :class="editingWidgetId ? 'bg-[var(--color-vintage-mustard)] text-[var(--color-vintage-charcoal)]' : 'bg-[var(--color-vintage-mint)] text-white'">
+                    <PlusCircle v-if="!editingWidgetId" class="w-5 h-5" />
+                    <Check v-else class="w-5 h-5" />
+                    {{ editingWidgetId ? 'Gravar Alterações' : 'Concluir Gráfico' }}
                   </button>
                 </div>
-              </div>
-            </section>
 
-            <section>
-              <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
-                <LayoutTemplate class="w-5 h-5 text-[var(--color-vintage-mustard)]" />
-                Seus Gráficos
-              </h3>
-              
-              <div class="flex flex-col gap-2">
-                <div v-if="widgets.filter(w => !w.isDefault).length === 0" class="text-sm font-medium text-[var(--text-muted)] italic p-4 text-center border overflow-hidden rounded-xl bg-[var(--bg-app)]/20 border-dashed">
-                  Você ainda não criou os seus painéis.<br>Preencha o formulário ao lado!
-                </div>
-                <!-- Custom Items -->
-                <div v-for="cw in widgets.filter(w => !w.isDefault)" :key="'manage-'+cw.id" class="p-3 rounded-xl border border-[var(--color-vintage-mustard)]/30 flex justify-between items-center bg-[var(--bg-app)]/50" :class="{'ring-2 ring-[var(--color-vintage-mint)]' : editingWidgetId === cw.id}">
-                  <div class="flex items-center gap-3">
-                    <div class="w-3 h-3 rounded-full" :class="cw.isVisible ? 'bg-[var(--color-vintage-mint)]' : 'bg-[var(--text-muted)]'"></div>
-                    <span class="font-bold text-sm truncate max-w-[90px]">{{ cw.title }}</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <button @click="editWidgetInModal(cw)" title="Editar" class="p-1.5 rounded hover:bg-[var(--color-vintage-mustard)]/20 text-[var(--color-vintage-mustard)] transition-colors">
-                      <Edit3 class="w-4 h-4" />
-                    </button>
-                    <button @click="deleteWidget(cw.id)" title="Deletar" class="p-1.5 rounded hover:bg-red-500/20 text-red-500 transition-colors">
-                      <Trash2 class="w-4 h-4" />
-                    </button>
-                    <button 
-                      @click="cw.isVisible = !cw.isVisible; saveWidgets()"
-                      class="px-2 py-1 rounded text-xs font-bold transition-colors w-[65px] text-center ml-1"
-                      :class="cw.isVisible ? 'bg-[var(--color-vintage-charcoal)]/10 text-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)]/10 dark:text-[var(--color-vintage-paper)]' : 'bg-[var(--color-vintage-mint)] text-white'"
-                    >
-                      {{ cw.isVisible ? 'OCULTAR' : 'ATIVAR' }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
+              </form>
+            </div>
+
           </div>
-
-          <!-- RIGHT SIDE: CREATOR WIZARD -->
-          <div class="flex flex-col md:col-span-7">
-             <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
-              <Sparkles class="w-5 h-5 text-[var(--color-vintage-mint)]" />
-              {{ editingWidgetId ? 'Editando Gráfico' : 'Montagem Prática Avançada' }}
-            </h3>
-            <p class="text-sm text-[var(--text-muted)] font-medium mb-4">Aproveite todo o poder de renderização nativa da nossa plataforma preditiva com dezenas de visualizações disponíveis.</p>
-            
-            <form @submit.prevent="saveCustomWidget" class="bg-[var(--color-vintage-charcoal)]/5 dark:bg-[var(--color-vintage-paper)]/5 p-6 rounded-2xl border border-[var(--border-color)] space-y-6 flex-1 shadow-inner">
-              
-              <!-- Título -->
-              <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nome do Gráfico / Análise</label>
-                <input 
-                  v-model="newWidgetForm.title"
-                  type="text" 
-                  required
-                  class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="Ex: Dispersão Térmica Geral..."
-                />
-              </div>
-
-              <!-- Type & Metric -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                   <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Estrutura Visual ECharts</label>
-                   <select v-model="newWidgetForm.type" required class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors font-semibold">
-                     <optgroup label="Tabelas Evolutivas/Linhas">
-                        <option value="line">Linha Suave (Única Métrica)</option>
-                        <option value="line_compare">Linha Dupla (Contraste de 2 Métricas)</option>
-                     </optgroup>
-                     <optgroup label="Comparativos / Barras">
-                        <option value="bar">Barras Simples</option>
-                        <option value="bar_stacked">Barras Empilhadas (Mix Proporcional)</option>
-                     </optgroup>
-                     <optgroup label="Modelos Complexos Multi-variados">
-                        <option value="pie">Gráfico de Pizza (Composição)</option>
-                        <option value="radar">Polígono Radar (Multidimensional)</option>
-                        <option value="scatter">Gráfico de Dispersão (Anomalias)</option>
-                        <option value="gauge">Velocímetro (Indicador de Ponteiro)</option>
-                     </optgroup>
-                   </select>
-                </div>
-                <div>
-                   <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Indicador Paramétrico</label>
-                   <select v-model="newWidgetForm.metric" required class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mustard)] transition-colors font-semibold">
-                     <option value="temp">Sobreaquecimento / Térmica</option>
-                     <option value="vib">Desgaste Mecânico / Vibração</option>
-                     <option value="cost">Custos Operacionais Brutos</option>
-                     <option value="energy">Consumo Eletromagnético (KWh)</option>
-                     <option value="prod">Quedas de Produção em Lotes</option>
-                   </select>
-                </div>
-              </div>
-
-              <!-- Span -->
-              <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Layout do Contêiner</label>
-                <select v-model="newWidgetForm.span" class="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-3 px-3 text-sm text-[var(--text-main)] focus:outline-none">
-                  <option :value="1">Modo Retrato (1/3 da Tela)</option>
-                  <option :value="2">Modo Paisagem (2/3 da Tela)</option>
-                  <option :value="3">Modo Panorama (Toma a linha inteira)</option>
-                </select>
-              </div>
-
-              <!-- Colors -->
-              <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">Tonalidade Predominante Visual</label>
-                <div class="flex flex-wrap gap-4 items-center">
-                  <!-- Default Palette -->
-                  <label v-for="(colorHex, colorName) in availableColors" :key="'col-'+colorName" class="cursor-pointer relative">
-                    <input type="radio" v-model="newWidgetForm.color" :value="colorName" class="peer sr-only" name="customColor" />
-                    <div class="w-10 h-10 rounded-full border-[3px] border-transparent peer-checked:scale-110 peer-checked:shadow-xl transition-all flex items-center justify-center hover:opacity-80" :style="{ backgroundColor: colorHex, borderColor: newWidgetForm.color === colorName ? 'var(--text-main)' : 'transparent' }">
-                      <Check v-if="newWidgetForm.color === colorName" class="w-5 h-5 text-white" />
-                    </div>
-                  </label>
-
-                  <!-- FREE CUSTOM COLOR PIPETTE -->
-                  <label class="cursor-pointer relative flex items-center gap-2 group">
-                    <input type="radio" v-model="newWidgetForm.color" value="Custom" class="peer sr-only" name="customColor" />
-                    <div class="w-10 h-10 rounded-full border-[3px] border-transparent peer-checked:scale-110 peer-checked:shadow-xl transition-all flex items-center justify-center overflow-hidden hover:opacity-80 relative" :style="{ borderColor: newWidgetForm.color === 'Custom' ? 'var(--text-main)' : 'transparent', background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }">
-                       <Check v-if="newWidgetForm.color === 'Custom'" class="w-5 h-5 text-white drop-shadow-md z-10 pointer-events-none" />
-                    </div>
-                    <!-- The actual input that controls HEX -->
-                    <input 
-                      v-if="newWidgetForm.color === 'Custom'" 
-                      type="color" 
-                      v-model="newWidgetForm.customHex" 
-                      class="w-12 h-10 p-0 border border-[var(--border-color)] rounded-lg cursor-pointer bg-transparent animate-in zoom-in ml-1" 
-                      title="Escolha qualquer cor da paleta"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <!-- Submit / Cancel -->
-              <div class="flex gap-4 pt-4">
-                <button v-if="editingWidgetId" type="button" @click="cancelEdit" class="flex-1 border-2 border-[var(--border-color)] text-[var(--text-muted)] font-bold text-sm h-12 rounded-xl hover:bg-[var(--bg-app)] hover:text-[var(--text-main)] transition-colors">
-                  Cancelar Edição
-                </button>
-                <button type="submit" class="flex-2 w-full flex justify-center items-center gap-2 font-bold text-[15px] h-12 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md" :class="editingWidgetId ? 'bg-[var(--color-vintage-mustard)] text-[var(--color-vintage-charcoal)]' : 'bg-[var(--color-vintage-mint)] text-white'">
-                  <PlusCircle v-if="!editingWidgetId" class="w-5 h-5" />
-                  <Check v-else class="w-5 h-5" />
-                  {{ editingWidgetId ? 'Gravar Alterações' : 'Concluir Gráfico' }}
-                </button>
-              </div>
-
-            </form>
-          </div>
-
         </div>
+      </div>
+    </Teleport>
+  </div>
+</template>     </div>
       </div>
     </div>
     

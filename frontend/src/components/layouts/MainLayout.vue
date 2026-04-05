@@ -20,7 +20,7 @@
           <span class="font-medium">Máquinas</span>
         </router-link>
         <!-- Suppliers -->
-        <router-link to="/suppliers" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+        <router-link v-if="['ADMIN', 'MANAGER'].includes(authStore.userRole)" to="/suppliers" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
           <Truck class="w-5 h-5" />
           <span class="font-medium">Fornecedores</span>
         </router-link>
@@ -30,9 +30,14 @@
           <span class="font-medium">Relatórios</span>
         </router-link>
         <!-- Users -->
-        <router-link to="/users" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+        <router-link v-if="authStore.userRole === 'ADMIN'" to="/users" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
           <Users class="w-5 h-5" />
           <span class="font-medium">Usuários</span>
+        </router-link>
+        <!-- Logs -->
+        <router-link v-if="authStore.userRole === 'ADMIN'" to="/logs" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+          <ShieldAlert class="w-5 h-5" />
+          <span class="font-medium">Logs de Auditoria</span>
         </router-link>
       </nav>
       <div class="p-4 border-t border-[var(--border-color)]">
@@ -144,7 +149,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Activity, LayoutDashboard, Factory, Bell, Truck, FileText, Users, Moon, Sun, LogOut, AlertTriangle, AlertCircle, Info, Check } from 'lucide-vue-next'
+import { Activity, LayoutDashboard, Factory, Bell, Truck, FileText, Users, Moon, Sun, LogOut, AlertTriangle, AlertCircle, Info, Check, ShieldAlert } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()

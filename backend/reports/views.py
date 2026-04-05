@@ -7,7 +7,11 @@ from datetime import timedelta
 from alerts.models import Alert
 from machines.models import Machine
 from sensors.models import SensorReading
+from suppliers.models import Supplier
+from users.models import User
+from audit.models import AuditLog
 from .generators import generate_pdf, generate_excel
+import csv
 
 
 def _parse_date_range(request):
@@ -24,7 +28,7 @@ class FailureReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        output_format = request.query_params.get('format', 'json')
+        output_format = request.query_params.get('output', 'json')
         machine_id = request.query_params.get('machine')
         start, end = _parse_date_range(request)
 
@@ -88,7 +92,7 @@ class PerformanceReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        output_format = request.query_params.get('format', 'json')
+        output_format = request.query_params.get('output', 'json')
         machine_id = request.query_params.get('machine')
         start, end = _parse_date_range(request)
 
@@ -145,7 +149,7 @@ class AlertReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        output_format = request.query_params.get('format', 'json')
+        output_format = request.query_params.get('output', 'json')
         risk = request.query_params.get('risk')
         status_filter = request.query_params.get('status')
         start, end = _parse_date_range(request)
@@ -195,3 +199,104 @@ class AlertReportView(APIView):
             return response
 
         return Response({'detail': 'Formato invalido. Use: json, pdf ou xlsx.'}, status=400)
+
+
+class DynamicExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        entity = request.data.get('entity')
+        output_format = request.data.get('output', 'csv')
+        
+        if not entity:
+            return Response({'detail': 'Entidade (entity) e obrigatoria.'}, status=400)
+
+        # Basic entity resolution directly pulling all data for MVP
+        title = ""
+        headers = []
+        rows = []
+        
+        if entity == 'machines':
+            title = 'Relatório Geral de Máquinas'
+            headers = ['ID', 'Nome', 'Numero de Serie', 'Fornecedor', 'Modelo', 'Localizacao', 'Status']
+            machines = Machine.objects.all().select_related('supplier')
+            for m in machines:
+                rows.append([
+                    str(m.id),
+                    m.name,
+                    m.serial_number,
+                    m.supplier.name if m.supplier else '-',
+                    m.model or '-',
+                    m.location or '-',
+                    m.get_status_display()
+                ])
+                
+        elif entity == 'suppliers':
+            title = 'Relatório de Fornecedores Ativos'
+            headers = ['ID', 'Fornecedor', 'CNPJ', 'Email de Contato', 'Telefone', 'Status']
+            suppliers = Supplier.objects.all()
+            for s in suppliers:
+                rows.append([
+                    str(s.id),
+                    s.name,
+                    s.cnpj,
+                    s.email,
+                    s.phone or '-',
+                    'Ativo' if s.is_active else 'Inativo'
+                ])
+                
+        elif entity == 'users':
+            title = 'Relatório Dinâmico de Usuários'
+            headers = ['Nome', 'Email', 'Cargo', 'Status do Acesso', 'Ultimo Login']
+            users = User.objects.all()
+            for u in users:
+                rows.append([
+                    u.name,
+                    u.email,
+                    u.get_role_display(),
+                    'Ativo' if u.is_active else 'Desativado',
+                    u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else 'Nunca'
+                ])
+                
+        elif entity == 'audit':
+            title = 'Relatório de Logs de Auditoria'
+            headers = ['Data/Hora', 'Usuário', 'Ação', 'Alvo', 'Descrição']
+            logs = AuditLog.objects.all().select_related('user')[:500] # Limite para não sobrecarregar
+            for log in logs:
+                rows.append([
+                    log.timestamp.strftime('%d/%m/%Y %H:%M'),
+                    log.user.name if log.user else 'Sistema',
+                    log.get_action_display(),
+                    log.entity_type,
+                    log.description
+                ])
+        else:
+            return Response({'detail': 'Entidade desconhecida.'}, status=400)
+
+        summary = {'Total de Registros': len(rows), 'Entidade Fonte': entity.upper()}
+
+        if output_format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="export_{entity}.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow([title])
+            writer.writerow([])
+            writer.writerow(headers)
+            for row in rows:
+                writer.writerow(row)
+            return response
+
+        elif output_format == 'pdf':
+            buffer = generate_pdf(title, headers, rows, summary)
+            response = HttpResponse(buffer, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="export_{entity}.pdf"'
+            return response
+
+        elif output_format == 'xlsx':
+            buffer = generate_excel(title, headers, rows, sheet_name='Exportacao')
+            response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="export_{entity}.xlsx"'
+            return response
+
+        return Response({'detail': 'Formato invalido. Suportados: csv, xlsx, pdf.'}, status=400)

@@ -26,7 +26,7 @@ def generate_pdf(title, headers, rows, summary=None):
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=16,
-        textColor=colors.HexColor('#1a1a2e'),
+        textColor=colors.HexColor('#2A2626'),
         spaceAfter=12,
     )
     elements.append(Paragraph('PredictAI', title_style))
@@ -45,13 +45,13 @@ def generate_pdf(title, headers, rows, summary=None):
     table_data = [headers] + rows
     table = Table(table_data, repeatRows=1)
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2A2626')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4EFE6')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2DAC9')),
         ('FONTSIZE', (0, 1), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
@@ -68,7 +68,7 @@ def generate_excel(title, headers, rows, sheet_name='Relatorio'):
     ws.title = sheet_name
 
     header_font = Font(bold=True, color='FFFFFF', size=11)
-    header_fill = PatternFill(start_color='1a1a2e', end_color='1a1a2e', fill_type='solid')
+    header_fill = PatternFill(start_color='2A2626', end_color='2A2626', fill_type='solid')
     header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
     ws.append([title])
@@ -82,7 +82,7 @@ def generate_excel(title, headers, rows, sheet_name='Relatorio'):
         cell.fill = header_fill
         cell.alignment = header_align
 
-    alt_fill = PatternFill(start_color='f5f5f5', end_color='f5f5f5', fill_type='solid')
+    alt_fill = PatternFill(start_color='F4EFE6', end_color='F4EFE6', fill_type='solid')
     for i, row in enumerate(rows):
         ws.append(row)
         if i % 2 == 0:

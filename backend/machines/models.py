@@ -12,7 +12,11 @@ class Machine(models.Model):
     name = models.CharField(max_length=255)
     serial_number = models.CharField(max_length=100, unique=True)
     model = models.CharField(max_length=100, blank=True, default='')
-    manufacturer = models.CharField(max_length=100, blank=True, default='')
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.RESTRICT,
+        related_name='machines'
+    )
     location = models.CharField(max_length=255, blank=True, default='')
     description = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)

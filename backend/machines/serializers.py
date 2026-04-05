@@ -3,21 +3,24 @@ from .models import Machine
 
 
 class MachineListSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+
     class Meta:
         model = Machine
         fields = [
-            'id', 'name', 'serial_number', 'model', 'manufacturer',
+            'id', 'name', 'serial_number', 'model', 'supplier', 'supplier_name',
             'location', 'status', 'installation_date', 'created_at',
         ]
 
 
 class MachineSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.name', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
 
     class Meta:
         model = Machine
         fields = [
-            'id', 'name', 'serial_number', 'model', 'manufacturer',
+            'id', 'name', 'serial_number', 'model', 'supplier', 'supplier_name',
             'location', 'description', 'status', 'installation_date',
             'created_by', 'created_by_name', 'created_at', 'updated_at',
         ]

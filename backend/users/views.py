@@ -26,6 +26,17 @@ class UserListCreateView(generics.ListCreateAPIView):
             return UserCreateSerializer
         return UserListSerializer
 
+    def perform_create(self, serializer):
+        from audit.models import AuditLog
+        instance = serializer.save()
+        AuditLog.objects.create(
+            user=self.request.user,
+            action=AuditLog.Action.CREATE,
+            entity_type='User',
+            entity_id=str(instance.id),
+            description=f"Usuario '{instance.email}' registrado."
+        )
+
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
@@ -35,6 +46,30 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ('PUT', 'PATCH'):
             return UserUpdateSerializer
         return UserDetailSerializer
+
+    def perform_update(self, serializer):
+        from audit.models import AuditLog
+        instance = serializer.save()
+        AuditLog.objects.create(
+            user=self.request.user,
+            action=AuditLog.Action.UPDATE,
+            entity_type='User',
+            entity_id=str(instance.id),
+            description=f"Usuario '{instance.email}' atualizado."
+        )
+
+    def perform_destroy(self, instance):
+        from audit.models import AuditLog
+        email = instance.email
+        id_str = str(instance.id)
+        instance.delete()
+        AuditLog.objects.create(
+            user=self.request.user,
+            action=AuditLog.Action.DELETE,
+            entity_type='User',
+            entity_id=id_str,
+            description=f"Usuario '{email}' removido."
+        )
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()

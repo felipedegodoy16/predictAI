@@ -107,7 +107,7 @@
             <tr>
               <th scope="col" class="px-6 py-4">Nome / ID Base</th>
               <th scope="col" class="px-6 py-4">Status</th>
-              <th scope="col" class="px-6 py-4">Fabricante & Modelo</th>
+              <th scope="col" class="px-6 py-4">Fornecedor & Modelo</th>
               <th scope="col" class="px-6 py-4">Localização (Setor)</th>
               <th scope="col" class="px-6 py-4 text-center">Ações</th>
             </tr>
@@ -146,7 +146,7 @@
                  </span>
               </td>
               <td class="px-6 py-4">
-                <p class="text-sm font-bold text-[var(--text-main)]">{{ mach.manufacturer || 'Não catalogado' }}</p>
+                <p class="text-sm font-bold text-[var(--text-main)]">{{ mach.supplier_name || 'Sem Fornecedor' }}</p>
                 <p class="text-xs text-[var(--text-muted)] truncate max-w-[150px]">{{ mach.model || 'Sem especificação' }}</p>
               </td>
               <td class="px-6 py-4 text-sm text-[var(--text-muted)] font-bold">
@@ -201,8 +201,8 @@
               
               <div class="space-y-2 mt-2">
                  <div class="flex justify-between items-center text-sm">
-                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Fabricante</span>
-                    <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.manufacturer || 'Não catalogado' }}</span>
+                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Fornecedor</span>
+                    <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.supplier_name || 'Sem Fornecedor' }}</span>
                  </div>
                  <div class="flex justify-between items-center text-sm">
                     <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Modelo</span>
@@ -307,14 +307,18 @@
                 </select>
               </div>
 
-              <!-- MANUFACTURER -->
+              <!-- SUPPLIER -->
               <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Fabricante</label>
-                <input 
-                  v-model="form.manufacturer" type="text"
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Fornecedor Vinculado*</label>
+                <select 
+                  v-model="form.supplier" required
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="Siemens, Bosch, etc."
-                />
+                >
+                  <option value="" disabled>Selecione um fornecedor</option>
+                  <option v-for="sup in suppliers" :key="sup.id" :value="sup.id">
+                    {{ sup.name }} ({{ sup.cnpj }})
+                  </option>
+                </select>
               </div>
 
               <!-- MODEL -->
@@ -374,6 +378,7 @@ import api from '@/services/api'
 // ======= STATE =======
 const viewMode = ref('table') // 'table' or 'grid'
 const machines = ref([])
+const suppliers = ref([])
 const totalItems = ref(0)
 const loading = ref(true)
 
@@ -402,7 +407,7 @@ const emptyForm = {
   name: '',
   serial_number: '',
   model: '',
-  manufacturer: '',
+  supplier: '',
   location: '',
   description: '',
   status: 'ACTIVE'
@@ -498,7 +503,7 @@ const openEditModal = (machine) => {
     name: machine.name,
     serial_number: machine.serial_number,
     model: machine.model,
-    manufacturer: machine.manufacturer,
+    supplier: machine.supplier,
     location: machine.location,
     description: machine.description,
     status: machine.status
@@ -549,8 +554,18 @@ const deleteMachine = async (id) => {
   }
 }
 
+const fetchSuppliers = async () => {
+  try {
+    const response = await api.get('/suppliers/', { params: { size: 1000 } })
+    suppliers.value = response.data.results || response.data
+  } catch (error) {
+    console.error('Failed to fetch suppliers:', error)
+  }
+}
+
 // Initial Load
 onMounted(() => {
+  fetchSuppliers()
   fetchMachines()
 })
 

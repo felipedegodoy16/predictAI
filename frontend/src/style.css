@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vintage-cream: #FDFBF7;
+  --color-vintage-paper: #F4EFE6;
+  --color-vintage-charcoal: #2A2626;
+  
+  --color-vintage-dark: #1A1818;
+  --color-vintage-dark-soft: #242121;
+  
+  --color-vintage-mint: #90A99E;
+  --color-vintage-rose: #C69F9B;
+  --color-vintage-mustard: #DABA78;
+  --color-vintage-blue: #7B8C9C;
+
+  /* Custom utility classes variables */
+  --color-primary: var(--color-vintage-blue);
+  --color-secondary: var(--color-vintage-charcoal);
+  --color-success: var(--color-vintage-mint);
+  --color-warning: var(--color-vintage-mustard);
+  --color-danger: var(--color-vintage-rose);
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    --bg-app: var(--color-vintage-cream);
+    --bg-card: var(--color-vintage-paper);
+    --text-main: var(--color-vintage-charcoal);
+    --text-muted: #5e5757;
+    --border-color: #e2dac9;
+  }
+
+  :root.dark {
+    --bg-app: var(--color-vintage-dark);
+    --bg-card: var(--color-vintage-dark-soft);
+    --text-main: var(--color-vintage-paper);
+    --text-muted: #9c9588;
+    --border-color: #383434;
+  }
+
+  body {
+    @apply bg-[var(--bg-app)] text-[var(--text-main)] transition-colors duration-300 antialiased font-sans flex flex-col min-h-screen;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  button, a, select, input[type="submit"], input[type="button"], [role="button"] {
+    @apply cursor-pointer;
+  }
+}
+
+@layer utilities {
+  .vintage-panel {
+    @apply bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-sm backdrop-blur-sm transition-colors duration-300;
+  }
+  
+  .vintage-input {
+    @apply bg-[var(--bg-app)] border border-[var(--border-color)] rounded-lg px-4 py-2 w-full text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--color-vintage-mint)] transition-all;
+  }
+  
+  .vintage-btn-primary {
+    @apply bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] px-4 py-2 rounded-lg font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm;
+  }
+  
+  .vintage-btn-outline {
+    @apply border-2 border-[var(--border-color)] text-[var(--text-main)] px-4 py-2 rounded-lg font-medium hover:bg-[var(--bg-card)] active:scale-95 transition-all;
+  }
+}

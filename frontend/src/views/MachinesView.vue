@@ -43,6 +43,24 @@
       </div>
 
       <div class="flex gap-4 w-full md:w-auto mt-2 md:mt-0">
+        <!-- View Mode Toggle -->
+        <div class="hidden sm:flex items-center bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-1 shadow-sm">
+           <button 
+             @click="viewMode = 'table'"
+             :class="['p-1.5 rounded-lg transition-colors', viewMode === 'table' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]']"
+             title="Visualização em Lista"
+           >
+             <List class="w-4 h-4" />
+           </button>
+           <button 
+             @click="viewMode = 'grid'"
+             :class="['p-1.5 rounded-lg transition-colors', viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]']"
+             title="Visualização em Cards"
+           >
+             <LayoutGrid class="w-4 h-4" />
+           </button>
+        </div>
+
         <!-- Status Filter -->
         <div class="flex items-center bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl px-2 shadow-sm">
            <Filter class="w-4 h-4 text-[var(--text-muted)] ml-2 shrink-0" />
@@ -83,7 +101,7 @@
          <div class="w-10 h-10 border-4 border-[var(--color-vintage-mint)] border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div class="overflow-x-auto">
+      <div v-if="viewMode === 'table'" class="overflow-x-auto">
         <table class="w-full text-left text-sm whitespace-nowrap">
           <thead class="bg-[var(--bg-app)] border-b border-[var(--border-color)] text-[10px] uppercase tracking-wider font-extrabold text-[var(--text-muted)]">
             <tr>
@@ -148,6 +166,66 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Grid View (Cards) -->
+      <div v-else-if="viewMode === 'grid'" class="p-6 overflow-y-auto w-full h-[calc(100vh-280px)]">
+        <div v-if="machines.length === 0 && !loading" class="text-center text-[var(--text-muted)] py-12">
+           Nenhum equipamento foi encontrado de acordo com os filtros selecionados.
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 content-start pb-8">
+           <div 
+             v-for="mach in machines" 
+             :key="mach.id"
+             class="bg-[var(--bg-app)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--color-vintage-mint)] transition-all group flex flex-col gap-4 shadow-sm"
+           >
+              <div class="flex justify-between items-start">
+                 <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] shadow-sm">
+                       <Cpu class="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--color-vintage-mint)] transition-colors" />
+                    </div>
+                    <div>
+                      <p class="font-bold text-[var(--text-main)] text-[16px]">{{ mach.name }}</p>
+                      <p class="text-xs text-[var(--text-muted)] uppercase tracking-wider">{{ mach.serial_number }}</p>
+                    </div>
+                 </div>
+                 <span class="px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full border shrink-0"
+                  :class="{
+                    'bg-[var(--color-vintage-mint)]/10 text-[var(--color-vintage-mint)] border-[var(--color-vintage-mint)]/20': mach.status === 'ACTIVE',
+                    'bg-[var(--color-vintage-mustard)]/10 text-[var(--color-vintage-mustard)] border-[var(--color-vintage-mustard)]/20': mach.status === 'MAINTENANCE',
+                    'bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)] border-[var(--color-vintage-rose)]/20': mach.status === 'INACTIVE',
+                  }"
+                 >
+                   {{ formatStatus(mach.status) }}
+                 </span>
+              </div>
+              
+              <div class="space-y-2 mt-2">
+                 <div class="flex justify-between items-center text-sm">
+                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Fabricante</span>
+                    <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.manufacturer || 'Não catalogado' }}</span>
+                 </div>
+                 <div class="flex justify-between items-center text-sm">
+                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Modelo</span>
+                    <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.model || 'Sem especificação' }}</span>
+                 </div>
+                 <div class="flex justify-between items-center text-sm">
+                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Localização</span>
+                    <span class="font-bold text-[var(--color-vintage-teal)] dark:text-[var(--color-vintage-mint)] truncate max-w-[150px] text-right">{{ mach.location || 'Sem Definição' }}</span>
+                 </div>
+              </div>
+
+              <div class="mt-auto pt-4 border-t border-[var(--border-color)] flex gap-2">
+                 <button @click.stop="openEditModal(mach)" class="flex-1 flex justify-center items-center gap-1.5 py-2 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--color-vintage-mint)] hover:text-white text-[var(--text-main)] text-xs font-bold transition-colors border border-[var(--border-color)] hover:border-transparent">
+                   <Edit3 class="w-3.5 h-3.5" /> Editar
+                 </button>
+                 <button @click.stop="deleteMachine(mach.id)" class="py-2 px-3 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--color-vintage-rose)]/10 text-[var(--text-muted)] hover:text-[var(--color-vintage-rose)] transition-colors border border-[var(--border-color)] hover:border-[var(--color-vintage-rose)]/30">
+                   <Trash2 class="w-4 h-4" />
+                 </button>
+              </div>
+           </div>
+        </div>
+      </div>
+
 
       <!-- Pagination Block -->
       <div class="mt-auto border-t border-[var(--border-color)] bg-[var(--bg-app)]/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -288,10 +366,11 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Search, Plus, Filter, Edit3, Trash2, X, ChevronLeft, ChevronRight, Layers, Cpu, Save } from 'lucide-vue-next'
+import { Search, Plus, Filter, Edit3, Trash2, X, ChevronLeft, ChevronRight, Layers, Cpu, Save, LayoutGrid, List } from 'lucide-vue-next'
 import api from '@/services/api'
 
 // ======= STATE =======
+const viewMode = ref('table') // 'table' or 'grid'
 const machines = ref([])
 const totalItems = ref(0)
 const loading = ref(true)

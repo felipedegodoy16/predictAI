@@ -7,7 +7,7 @@ Aplicação para monitoramento de máquinas através de sensores e análise pred
 O projeto é dividido em:
 
 - **[backend/](./backend)**: API REST construída com Django e Django Rest Framework (DRF), utilizando JWT para autenticação.
-- **[frontend/](./frontend)**: Interface do usuário construída com Vue.js 3 e Vite.
+- **[frontend/](./frontend)**: Interface do usuário construída com Vue.js 3, Vite e Tailwind CSS para estilização moderna e responsiva.
 
 ## Como Executar
 

@@ -35,7 +35,7 @@ class IsManager(BasePermission):
             request.user.is_authenticated and
             request.user.system_role == 'MANAGER'
         )
-
+        
 
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):

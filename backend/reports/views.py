@@ -7,7 +7,6 @@ from datetime import timedelta
 from alerts.models import Alert
 from machines.models import Machine
 from sensors.models import SensorReading
-from suppliers.models import Supplier
 from users.models import User
 from audit.models import AuditLog
 from .generators import generate_pdf, generate_excel
@@ -218,31 +217,16 @@ class DynamicExportView(APIView):
         
         if entity == 'machines':
             title = 'Relatório Geral de Máquinas'
-            headers = ['ID', 'Nome', 'Numero de Serie', 'Fornecedor', 'Modelo', 'Localizacao', 'Status']
-            machines = Machine.objects.all().select_related('supplier')
+            headers = ['ID', 'Nome', 'Numero de Serie', 'Modelo', 'Localizacao', 'Status']
+            machines = Machine.objects.all()
             for m in machines:
                 rows.append([
                     str(m.id),
                     m.name,
                     m.serial_number,
-                    m.supplier.name if m.supplier else '-',
                     m.model or '-',
                     m.location or '-',
                     m.get_status_display()
-                ])
-                
-        elif entity == 'suppliers':
-            title = 'Relatório de Fornecedores Ativos'
-            headers = ['ID', 'Fornecedor', 'CNPJ', 'Email de Contato', 'Telefone', 'Status']
-            suppliers = Supplier.objects.all()
-            for s in suppliers:
-                rows.append([
-                    str(s.id),
-                    s.name,
-                    s.cnpj,
-                    s.email,
-                    s.phone or '-',
-                    'Ativo' if s.is_active else 'Inativo'
                 ])
                 
         elif entity == 'users':

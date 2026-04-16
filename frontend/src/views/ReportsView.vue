@@ -339,7 +339,7 @@
 import { ref, computed } from 'vue'
 import {
   FileText, CalendarDays, Download, AlertTriangle, TrendingUp, Bell,
-  Database, Factory, Truck, Users, ShieldAlert,
+  Database, Factory, Users, ShieldAlert,
   Table2, Sheet, FileType, CheckCircle, XCircle
 } from 'lucide-vue-next'
 import api from '@/services/api'
@@ -381,7 +381,6 @@ const alertFields       = ['Máquina', 'Tipo', 'Risco', 'Status', 'Título', 'Re
 // ───────────────────────────── Entity Options ─────────────────────────────
 const entities = [
   { value: 'machines',  label: 'Máquinas',       icon: Factory    },
-  { value: 'suppliers', label: 'Fornecedores',    icon: Truck      },
   { value: 'users',     label: 'Usuários',        icon: Users      },
   { value: 'audit',     label: 'Logs de Auditoria', icon: ShieldAlert },
 ]

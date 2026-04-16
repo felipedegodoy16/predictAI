@@ -15,7 +15,7 @@ class AuditLog(models.Model):
         related_name='audit_logs'
     )
     action = models.CharField(max_length=20, choices=Action.choices)
-    entity_type = models.CharField(max_length=100) # Ex: Machine, Supplier, User
+    entity_type = models.CharField(max_length=100) # Ex: Machine, User
     entity_id = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)

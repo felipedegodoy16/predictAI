@@ -16,8 +16,8 @@ from users.permissions import IsAdmin
 class MachineListCreateView(generics.ListCreateAPIView):
     queryset = Machine.objects.select_related('created_by').all()
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
-    filterset_fields = ['status', 'supplier', 'location']
-    search_fields = ['name', 'serial_number', 'model', 'supplier__name', 'location']
+    filterset_fields = ['status', 'location']
+    search_fields = ['name', 'serial_number', 'model', 'location']
     ordering_fields = ['name', 'status', 'created_at']
     ordering = ['name']
 

@@ -38,15 +38,14 @@ const router = createRouter({
           component: () => import('../views/AlertsView.vue')
         },
         {
-          path: 'suppliers',
-          name: 'suppliers',
-          component: () => import('../views/SuppliersView.vue'),
-          meta: { roles: ['ADMIN', 'MANAGER'] } // Técnico não acessa
-        },
-        {
           path: 'reports',
           name: 'reports',
           component: () => import('../views/ReportsView.vue')
+        },
+        {
+          path: 'work-orders',
+          name: 'work-orders',
+          component: () => import('../views/WorkOrdersView.vue')
         },
         {
           path: 'users',

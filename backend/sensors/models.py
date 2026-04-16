@@ -47,8 +47,25 @@ class SensorReading(models.Model):
         ]
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         self._detect_anomaly()
         super().save(*args, **kwargs)
+
+        if is_new and self.is_anomaly:
+            from work_orders.models import WorkOrder
+            has_open = WorkOrder.objects.filter(
+                machine=self.sensor.machine,
+                order_type=WorkOrder.OrderType.PREDICTIVE,
+                status__is_closed=False
+            ).exists()
+            if not has_open:
+                WorkOrder.objects.create(
+                    title=f'Manutencao Preditiva: {self.sensor.machine.name}',
+                    description=f'Anomalia detectada no sensor {self.sensor.name}. Valor: {self.value} {self.sensor.unit}. Limites: Min {self.sensor.min_threshold}, Max {self.sensor.max_threshold}. Desvio: {self.anomaly_score}%.',
+                    machine=self.sensor.machine,
+                    order_type=WorkOrder.OrderType.PREDICTIVE,
+                    priority=WorkOrder.Priority.CRITICAL
+                )
 
     def _detect_anomaly(self):
         sensor = self.sensor

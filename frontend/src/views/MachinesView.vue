@@ -107,7 +107,7 @@
             <tr>
               <th scope="col" class="px-6 py-4">Nome / ID Base</th>
               <th scope="col" class="px-6 py-4">Status</th>
-              <th scope="col" class="px-6 py-4">Fornecedor & Modelo</th>
+              <th scope="col" class="px-6 py-4">Modelo</th>
               <th scope="col" class="px-6 py-4">Localização (Setor)</th>
               <th scope="col" class="px-6 py-4 text-center">Ações</th>
             </tr>
@@ -146,8 +146,7 @@
                  </span>
               </td>
               <td class="px-6 py-4">
-                <p class="text-sm font-bold text-[var(--text-main)]">{{ mach.supplier_name || 'Sem Fornecedor' }}</p>
-                <p class="text-xs text-[var(--text-muted)] truncate max-w-[150px]">{{ mach.model || 'Sem especificação' }}</p>
+                <p class="text-sm font-bold text-[var(--text-main)]">{{ mach.model || 'Sem especificação' }}</p>
               </td>
               <td class="px-6 py-4 text-sm text-[var(--text-muted)] font-bold">
                 {{ mach.location || 'Sem Definição' }}
@@ -200,10 +199,6 @@
               </div>
               
               <div class="space-y-2 mt-2">
-                 <div class="flex justify-between items-center text-sm">
-                    <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Fornecedor</span>
-                    <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.supplier_name || 'Sem Fornecedor' }}</span>
-                 </div>
                  <div class="flex justify-between items-center text-sm">
                     <span class="text-[var(--text-muted)] text-[11px] uppercase font-bold tracking-wider">Modelo</span>
                     <span class="font-bold text-[var(--text-main)] truncate max-w-[150px] text-right">{{ mach.model || 'Sem especificação' }}</span>
@@ -307,19 +302,7 @@
                 </select>
               </div>
 
-              <!-- SUPPLIER -->
-              <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Fornecedor Vinculado*</label>
-                <select 
-                  v-model="form.supplier" required
-                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                >
-                  <option value="" disabled>Selecione um fornecedor</option>
-                  <option v-for="sup in suppliers" :key="sup.id" :value="sup.id">
-                    {{ sup.name }} ({{ sup.cnpj }})
-                  </option>
-                </select>
-              </div>
+              <!-- COMPONENT IS A GRID gap, so we only remove SUPPLIER DIV -->
 
               <!-- MODEL -->
               <div>
@@ -338,6 +321,16 @@
                   v-model="form.location" type="text"
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
                   placeholder="Setor de Usinagem, Linha de Montagem A"
+                />
+              </div>
+
+               <!-- MAINTENANCE INTERVAL DAYS -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Intervalo Previsto para Manutenção (Dias)</label>
+                <input 
+                  v-model.number="form.maintenance_interval_days" type="number" min="1"
+                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                  placeholder="Ex: 30"
                 />
               </div>
 
@@ -378,7 +371,6 @@ import api from '@/services/api'
 // ======= STATE =======
 const viewMode = ref('table') // 'table' or 'grid'
 const machines = ref([])
-const suppliers = ref([])
 const totalItems = ref(0)
 const loading = ref(true)
 
@@ -407,10 +399,10 @@ const emptyForm = {
   name: '',
   serial_number: '',
   model: '',
-  supplier: '',
   location: '',
   description: '',
-  status: 'ACTIVE'
+  status: 'ACTIVE',
+  maintenance_interval_days: null
 }
 
 const form = ref({ ...emptyForm })
@@ -503,10 +495,10 @@ const openEditModal = (machine) => {
     name: machine.name,
     serial_number: machine.serial_number,
     model: machine.model,
-    supplier: machine.supplier,
     location: machine.location,
     description: machine.description,
-    status: machine.status
+    status: machine.status,
+    maintenance_interval_days: machine.maintenance_interval_days
   }
   showModal.value = true
 }
@@ -554,18 +546,8 @@ const deleteMachine = async (id) => {
   }
 }
 
-const fetchSuppliers = async () => {
-  try {
-    const response = await api.get('/suppliers/', { params: { size: 1000 } })
-    suppliers.value = response.data.results || response.data
-  } catch (error) {
-    console.error('Failed to fetch suppliers:', error)
-  }
-}
-
 // Initial Load
 onMounted(() => {
-  fetchSuppliers()
   fetchMachines()
 })
 

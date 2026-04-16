@@ -19,10 +19,10 @@
           <Factory class="w-5 h-5" />
           <span class="font-medium">Máquinas</span>
         </router-link>
-        <!-- Suppliers -->
-        <router-link v-if="['ADMIN', 'MANAGER'].includes(authStore.userRole)" to="/suppliers" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
-          <Truck class="w-5 h-5" />
-          <span class="font-medium">Fornecedores</span>
+        <!-- Work Orders -->
+        <router-link to="/work-orders" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+          <ClipboardList class="w-5 h-5" />
+          <span class="font-medium">Ordens de Serviço</span>
         </router-link>
         <!-- Reports -->
         <router-link to="/reports" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
@@ -84,38 +84,38 @@
                 <!-- Scrollable Body -->
                 <div class="max-h-[350px] overflow-y-auto flex flex-col">
                   <!-- Empty State -->
-                  <div v-if="mockNotifications.length === 0" class="p-8 text-center text-[var(--text-muted)] text-sm font-medium">
+                  <div v-if="notifications.length === 0" class="p-8 text-center text-[var(--text-muted)] text-sm font-medium">
                     <p>Nenhuma notificação no momento.</p>
                   </div>
                   
                   <!-- Items -->
                   <div v-else class="flex flex-col">
                     <div 
-                      v-for="noty in mockNotifications" 
+                      v-for="noty in notifications" 
                       :key="noty.id"
                       class="p-4 border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-app)] cursor-pointer transition-colors flex gap-3 items-start relative group"
                     >
                       <!-- Unread Indicator Pip -->
-                      <div v-if="noty.isUnread" class="absolute left-1.5 top-5 w-1.5 h-1.5 rounded-full bg-[var(--color-vintage-mint)]"></div>
+                      <div v-if="!noty.is_read" class="absolute left-1.5 top-5 w-1.5 h-1.5 rounded-full bg-[var(--color-vintage-mint)]"></div>
                       
                       <div class="p-2 rounded-full shrink-0" :class="{
-                        'bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)]': noty.type === 'critical',
-                        'bg-[var(--color-vintage-mustard)]/10 text-[var(--color-vintage-mustard)]': noty.type === 'warning',
-                        'bg-blue-500/10 text-blue-500': noty.type === 'info'
+                        'bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)]': noty.notification_type === 'CRITICAL',
+                        'bg-[var(--color-vintage-mustard)]/10 text-[var(--color-vintage-mustard)]': noty.notification_type === 'WARNING',
+                        'bg-blue-500/10 text-blue-500': noty.notification_type === 'INFO'
                       }">
-                        <AlertTriangle v-if="noty.type === 'critical'" class="w-4 h-4" />
-                        <AlertCircle v-else-if="noty.type === 'warning'" class="w-4 h-4" />
+                        <AlertTriangle v-if="noty.notification_type === 'CRITICAL'" class="w-4 h-4" />
+                        <AlertCircle v-else-if="noty.notification_type === 'WARNING'" class="w-4 h-4" />
                         <Info v-else class="w-4 h-4" />
                       </div>
                       <div class="flex-1 min-w-0 pr-1">
                         <div class="flex justify-between items-start">
-                          <p class="text-sm font-bold truncate pr-2" :class="noty.isUnread ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'">{{ noty.title }}</p>
-                          <button v-if="noty.isUnread" @click.stop="markAsRead(noty)" title="Marcar como visualizado" class="shrink-0 p-1 rounded hover:bg-[var(--color-vintage-mint)] hover:text-white text-[var(--color-vintage-mint)] opacity-0 group-hover:opacity-100 transition-all">
+                          <p class="text-sm font-bold truncate pr-2" :class="!noty.is_read ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'">{{ noty.title }}</p>
+                          <button v-if="!noty.is_read" @click.stop="handleMarkAsRead(noty)" title="Marcar como visualizado" class="shrink-0 p-1 rounded hover:bg-[var(--color-vintage-mint)] hover:text-white text-[var(--color-vintage-mint)] opacity-0 group-hover:opacity-100 transition-all">
                             <Check class="w-3.5 h-3.5" />
                           </button>
                         </div>
                         <p class="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed truncate whitespace-normal line-clamp-2">{{ noty.message }}</p>
-                        <span class="text-[10px] font-bold text-[var(--text-muted)] mt-2 block">{{ noty.time }}</span>
+                        <span class="text-[10px] font-bold text-[var(--text-muted)] mt-2 block">{{ new Date(noty.created_at).toLocaleString() }}</span>
                       </div>
                     </div>
                   </div>
@@ -146,10 +146,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Activity, LayoutDashboard, Factory, Bell, Truck, FileText, Users, Moon, Sun, LogOut, AlertTriangle, AlertCircle, Info, Check, ShieldAlert } from 'lucide-vue-next'
+import { Activity, LayoutDashboard, Factory, Bell, FileText, Users, Moon, Sun, LogOut, AlertTriangle, AlertCircle, Info, Check, ShieldAlert, ClipboardList } from 'lucide-vue-next'
+import { getNotifications, markAsRead } from '@/services/notifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -160,9 +161,9 @@ const currentRouteName = computed(() => {
     'dashboard': 'Visão Geral',
     'machines': 'Máquinas Ativas',
     'alerts': 'Central de Alertas',
-    'suppliers': 'Fornecedores',
     'reports': 'Relatórios',
     'users': 'Gerenciar Acessos',
+    'work-orders': 'Ordens de Serviço',
   }
   return map[route.name] || 'App'
 })
@@ -171,21 +172,41 @@ const currentRouteName = computed(() => {
 const isDark = ref(localStorage.theme === 'dark')
 const showNotifications = ref(false)
 
-// Notifications State (Mocked)
-const mockNotifications = ref([
-  { id: 1, title: 'Superaquecimento Injetora 5', message: 'Sensor de temperatura térmica superior relatou pico de 95°C no motor matriz.', time: 'Há 5 minutos', isUnread: true, type: 'critical' },
-  { id: 2, title: 'Manutenção Agendada', message: 'Revisão do Torno CNC D-40 prevista para o dia útil de amanhã.', time: 'Há 2 horas', isUnread: true, type: 'warning' },
-  { id: 3, title: 'Troca de Óleo Efetuada', message: 'Técnico confirmou reposição na Bomba Centrífuga.', time: 'Há 4 horas', isUnread: false, type: 'info' },
-  { id: 4, title: 'Vibração Anômala', message: 'Frequência do eixo esquerdo acima do tolerado na linha de montagem A.', time: 'Ontem', isUnread: false, type: 'critical' }
-])
+// Notifications State
+const notifications = ref([])
 
-const totalNotifications = ref(245) // simulated backend total
-const unreadCount = computed(() => mockNotifications.value.filter(n => n.isUnread).length)
+const totalNotifications = computed(() => notifications.value.length)
+const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
 const hasUnread = computed(() => unreadCount.value > 0)
 
-const markAsRead = (noty) => {
-  noty.isUnread = false
+const fetchNotifications = async () => {
+  try {
+    const res = await getNotifications()
+    notifications.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch notifications', err)
+  }
 }
+
+const handleMarkAsRead = async (noty) => {
+  try {
+    await markAsRead(noty.id)
+    noty.is_read = true
+  } catch (err) {
+    console.error('Failed to mark as read', err)
+  }
+}
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    fetchNotifications()
+    // Poll every 30 seconds
+    setInterval(fetchNotifications, 30000)
+
+    // Listen to forced refresh event
+    window.addEventListener('refresh-notifications', fetchNotifications)
+  }
+})
 
 const toggleTheme = () => {
   document.documentElement.classList.toggle('dark')

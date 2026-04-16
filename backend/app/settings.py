@@ -29,9 +29,10 @@ INSTALLED_APPS = [
     'sensors',
     'alerts',
     'analytics',
-    'suppliers',
     'reports',
     'audit',
+    'notifications',
+    'work_orders',
 ]
 
 MIDDLEWARE = [

@@ -114,8 +114,7 @@
                             <Check class="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p class="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed truncate whitespace-normal line-clamp-2">{{ noty.message }}</p>
-                        <span class="text-[10px] font-bold text-[var(--text-muted)] mt-2 block">{{ new Date(noty.created_at).toLocaleString() }}</span>
+                        <span class="text-[10px] font-bold text-[var(--text-muted)] mt-1 block">{{ new Date(noty.created_at).toLocaleString() }}</span>
                       </div>
                     </div>
                   </div>
@@ -182,7 +181,7 @@ const hasUnread = computed(() => unreadCount.value > 0)
 const fetchNotifications = async () => {
   try {
     const res = await getNotifications()
-    notifications.value = res.data
+    notifications.value = res.data.results || res.data
   } catch (err) {
     console.error('Failed to fetch notifications', err)
   }

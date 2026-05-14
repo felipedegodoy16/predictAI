@@ -4,7 +4,6 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
         <h1 class="text-3xl font-bold tracking-tighter flex items-center gap-2">
-          <ClipboardList class="w-8 h-8 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)]" />
           Ordens de Serviço (Kanban)
         </h1>
         <p class="text-[var(--text-muted)] font-medium">Arraste os cartões para atualizar o status em tempo real.</p>
@@ -28,7 +27,7 @@
            @change="applyFilter"
            class="bg-transparent border-none focus:outline-none py-2.5 px-3 text-sm font-bold text-[var(--text-main)] cursor-pointer"
          >
-           <option :value="false">Exibir Toda a Frota</option>
+           <option :value="false">Exibir todas as OS</option>
            <option :value="true">Apenas Minhas Tarefas</option>
          </select>
       </div>

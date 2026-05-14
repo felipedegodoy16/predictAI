@@ -9,39 +9,62 @@
         </h1>
         <p class="text-[var(--text-muted)] font-medium">Controle de perfis, hierarquias corporativas e permissões integradas.</p>
       </div>
+      <button 
+        @click="openCreateModal"
+        class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] font-bold shadow-md hover:-translate-y-0.5 transition-transform"
+      >
+        <UserPlus class="w-5 h-5" />
+        Novo Usuário
+      </button>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
       
-      <div class="flex items-center gap-3 w-full md:w-auto">
-        <!-- View Toggle Controls -->
-        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] p-1 rounded-xl flex shadow-sm shrink-0">
-          <button 
-            @click="viewMode = 'grid'" 
-            class="p-2 rounded-lg transition-all focus:outline-none"
-            :class="viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
-            title="Visualização em Cards"
-          >
-            <LayoutGrid class="w-5 h-5" />
-          </button>
+      <!-- Search Input -->
+      <div class="flex-1 w-full relative">
+        <label for="search" class="sr-only">Pesquisar</label>
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search class="w-5 h-5 text-[var(--text-muted)]" />
+        </div>
+        <input 
+          id="search"
+          v-model="searchQuery"
+          type="text" 
+          placeholder="Pesquisar por nome, email ou CPF..." 
+          class="w-full max-w-md pl-10 pr-10 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-sm focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors text-[var(--text-main)] font-medium shadow-sm"
+        />
+        <button 
+          v-if="searchQuery" 
+          @click="searchQuery = ''"
+          class="absolute inset-y-0 cursor-pointer right-0 pr-3 flex items-center text-[var(--text-muted)] hover:text-[var(--text-main)]"
+        >
+          <X class="w-4 h-4 ml-2" />
+        </button>
+      </div>
+
+      <!-- View Toggle Controls -->
+      <div class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0">
+        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] p-1 rounded-xl flex items-center shadow-sm shrink-0">
           <button 
             @click="viewMode = 'list'" 
-            class="p-2 rounded-lg transition-all focus:outline-none"
+            class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
             :class="viewMode === 'list' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
             title="Visualização em Lista"
           >
             <List class="w-5 h-5" />
           </button>
+          <button 
+            @click="viewMode = 'grid'" 
+            class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
+            :class="viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
+            title="Visualização em Cards"
+          >
+            <LayoutGrid class="w-5 h-5" />
+          </button>
         </div>
-
-        <button 
-          @click="openCreateModal"
-          class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] font-bold shadow-md hover:-translate-y-0.5 transition-transform"
-        >
-          <UserPlus class="w-5 h-5" />
-          Novo Usuário
-        </button>
       </div>
-    </div>
-
-    <!-- MAIN CONTENT AREA -->
+    </div>    <!-- MAIN CONTENT AREA -->
     <div v-if="loading" class="flex-1 flex items-center justify-center min-h-[400px]">
       <div class="flex flex-col items-center gap-4">
         <Loader2 class="w-8 h-8 animate-spin text-[var(--color-vintage-mint)]" />
@@ -71,10 +94,18 @@
     </div>
 
     <div v-else class="flex-1 flex flex-col min-h-0">
+
+      <div v-if="filteredUsers.length === 0" class="flex-1 flex flex-col items-center justify-center p-8 text-[var(--text-muted)]">
+        <p class="font-bold text-lg mb-1">Nenhum usuário encontrado</p>
+        <p class="text-sm">Sua busca não retornou resultados.</p>
+        <button v-if="searchQuery" @click="searchQuery = ''" class="mt-4 px-4 py-2 bg-[var(--bg-card)] hover:bg-[var(--border-color)] text-sm font-medium rounded-lg transition-colors border border-[var(--border-color)]">
+          Limpar Filtro
+        </button>
+      </div>
       
       <!-- GRID VIEW -->
-      <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6 items-start">
-        <div v-for="user in users" :key="user.id" class="vintage-panel group relative flex flex-col p-6 h-full hover:-translate-y-1 transition-all duration-300">
+      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6 items-start">
+        <div v-for="user in filteredUsers" :key="user.id" class="vintage-panel group relative flex flex-col p-6 h-full hover:-translate-y-1 transition-all duration-300">
           
           <div class="flex justify-between items-start mb-4 relative z-10">
             <div class="w-12 h-12 rounded-xl bg-[var(--color-vintage-mint)]/20 flex items-center justify-center text-[var(--color-vintage-mint)]">
@@ -125,7 +156,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[var(--border-color)]">
-              <tr v-for="user in users" :key="user.id" class="hover:bg-[var(--bg-app)]/30 transition-colors group">
+              <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-[var(--bg-app)]/30 transition-colors group">
                 <td class="p-4">
                   <div class="flex items-center gap-3">
                      <div class="w-10 h-10 rounded-lg bg-[var(--color-vintage-mint)]/10 flex items-center justify-center text-[var(--color-vintage-mint)] shrink-0 font-bold uppercase">
@@ -320,8 +351,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { UserPlus, X, Loader2, Edit3, Trash2, AlertTriangle, Users, Save, Phone, Mail, LayoutGrid, List, Shield, Key, UserCheck, Briefcase, ShieldCheck } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { UserPlus, Search, X, Loader2, Edit3, Trash2, AlertTriangle, Users, Save, Phone, Mail, LayoutGrid, List, Shield, Key, UserCheck, Briefcase, ShieldCheck } from 'lucide-vue-next'
 import api from '../services/api'
 
 const users = ref([])
@@ -330,6 +361,17 @@ const error = ref(null)
 const showModal = ref(false)
 const isEditing = ref(false)
 const viewMode = ref('list')
+const searchQuery = ref('')
+
+const filteredUsers = computed(() => {
+  if (!searchQuery.value) return users.value
+  const q = searchQuery.value.toLowerCase()
+  return users.value.filter(u => 
+    (u.name && u.name.toLowerCase().includes(q)) ||
+    (u.email && u.email.toLowerCase().includes(q)) ||
+    (u.cpf && u.cpf.toLowerCase().includes(q))
+  )
+})
 
 const applyCpfMask = (value) => {
   let v = value.replace(/\D/g, '')

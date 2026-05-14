@@ -21,12 +21,12 @@ from .serializers import (
     ResetPasswordWithCodeSerializer,
 )
 
-from .permissions import IsAdmin, IsAdminOrSelf
+from .permissions import IsAdmin, IsAdminOrSelf, IsAdminOrReadOnly
 
 
 class UserListCreateView(generics.ListCreateAPIView):
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAdminOrReadOnly]
     search_fields = ['name', 'email', 'cpf', 'department']
     filterset_fields = ['system_role', 'company_role', 'is_active']
     ordering_fields = ['name', 'created_at']

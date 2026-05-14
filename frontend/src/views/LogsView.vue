@@ -1,19 +1,19 @@
 <template>
-  <div class="h-full flex flex-col">
-    <!-- Header Estilo PredictAI -->
-    <div class="px-6 py-6 pb-8 border-b border-[var(--border-color)] bg-transparent">
-      <!-- Title Section -->
-      <div class="mb-6 flex flex-col items-start">
-        <h1 class="text-3xl font-bold tracking-tighter flex items-center gap-2 text-[var(--text-main)]">
+  <div class="h-full flex flex-col gap-6 relative pb-10">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tighter flex items-center gap-2">
           Logs de Auditoria
         </h1>
-        <p class="text-sm text-[var(--text-muted)] font-medium mt-1">Monitore, pesquise e rastreie o histórico operacional de todas as atividades administrativas do sistema.</p>
+        <p class="text-[var(--text-muted)] font-medium mt-1">Monitore, pesquise e rastreie o histórico operacional de todas as atividades administrativas do sistema.</p>
       </div>
+    </div>
 
-      <!-- Filters & Search Container - Flex Col to keep filters below search -->
-      <div class="flex flex-col gap-5 w-full">
+    <!-- Filters & Search Toolbar -->
+    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
         
-        <!-- Search Input (Exactly like MachineView) -->
+        <!-- Search Input -->
         <div class="flex-1 w-full relative">
           <label for="search" class="sr-only">Pesquisar</label>
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -24,7 +24,7 @@
             v-model="searchQuery"
             type="text" 
             placeholder="Pesquisar por autor, entidade ou descrição..." 
-            class="w-full pl-10 pr-10 py-2.5 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl text-sm focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors text-[var(--text-main)] font-medium shadow-sm"
+            class="w-full max-w-md pl-10 pr-10 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-sm focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors text-[var(--text-main)] font-medium shadow-sm"
           />
           <button 
             v-if="searchQuery" 
@@ -35,8 +35,8 @@
           </button>
         </div>
 
-        <!-- Filters Container (below search) -->
-        <div class="flex items-center gap-3 overflow-x-auto scroller max-w-full pb-1">
+        <!-- Filters Container -->
+        <div class="flex items-center gap-3 overflow-x-auto scroller w-full md:w-auto mt-2 md:mt-0 pb-1 md:pb-0">
           <button 
             @click="filterAction = ''"
             class="flex items-center justify-center border text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors shrink-0 shadow-sm"
@@ -74,7 +74,6 @@
         </div>
 
       </div>
-    </div>
 
     <!-- Status Messages -->
     <div v-if="loading" class="p-8 text-center text-[var(--text-muted)] flex flex-col items-center">
@@ -105,9 +104,9 @@
     </div>
 
     <!-- Content Table -->
-    <div v-else class="flex-1 overflow-auto p-6">
-      <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-sm overflow-hidden hidden md:block">
-        <table class="w-full text-left border-collapse">
+    <div v-else class="vintage-panel flex-1 flex flex-col overflow-hidden relative shadow-md">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm whitespace-nowrap">
           <thead>
             <tr class="border-b border-[var(--border-color)] bg-[var(--bg-app)]/50">
               <th class="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Data / Hora</th>

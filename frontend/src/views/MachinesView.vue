@@ -44,21 +44,23 @@
 
       <div class="flex gap-4 w-full md:w-auto mt-2 md:mt-0">
         <!-- View Mode Toggle -->
-        <div class="hidden sm:flex items-center bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-1 shadow-sm">
-           <button 
-             @click="viewMode = 'table'"
-             :class="['p-1.5 rounded-lg transition-colors', viewMode === 'table' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]']"
-             title="Visualização em Lista"
-           >
-             <List class="w-4 h-4" />
-           </button>
-           <button 
-             @click="viewMode = 'grid'"
-             :class="['p-1.5 rounded-lg transition-colors', viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]']"
-             title="Visualização em Cards"
-           >
-             <LayoutGrid class="w-4 h-4" />
-           </button>
+        <div class="hidden sm:flex items-center bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-1 shadow-sm shrink-0">
+          <button 
+            @click="viewMode = 'table'"
+            class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
+            :class="viewMode === 'table' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
+            title="Visualização em Lista"
+          >
+            <List class="w-5 h-5" />
+          </button>
+          <button 
+            @click="viewMode = 'grid'"
+            class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
+            :class="viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
+            title="Visualização em Cards"
+          >
+            <LayoutGrid class="w-5 h-5" />
+          </button>
         </div>
 
         <!-- Status Filter -->

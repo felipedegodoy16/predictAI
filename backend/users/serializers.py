@@ -26,8 +26,25 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if len(cpf) != 11:
             raise serializers.ValidationError('CPF deve conter exatamente 11 dígitos.')
         
-        # O banco salva com máscara usualmente (ou podemos decidir limpar).
-        # Vamos manter a máscara se foi enviada (max 14)
+        # Validar zeros e sequencias identicas (ex: 11111111111)
+        if cpf in [str(i) * 11 for i in range(10)]:
+            raise serializers.ValidationError('CPF inválido.')
+
+        # Cálculo do primeiro dígito
+        soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
+        digito1 = 11 - (soma % 11)
+        if digito1 > 9:
+            digito1 = 0
+
+        # Cálculo do segundo dígito
+        soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
+        digito2 = 11 - (soma % 11)
+        if digito2 > 9:
+            digito2 = 0
+
+        if cpf[-2:] != f"{digito1}{digito2}":
+            raise serializers.ValidationError('CPF inválido (dígitos verificadores incorretos).')
+        
         if User.objects.filter(cpf=value).exists():
             raise serializers.ValidationError('Este CPF já está em uso.')
             
@@ -47,7 +64,7 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'email', 'cpf',
+            'id', 'name', 'email', 'cpf', 'phone',
             'system_role', 'company_role', 'department',
             'is_active', 'created_at',
         ]

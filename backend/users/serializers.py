@@ -6,49 +6,19 @@ from .models import User
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
-    username = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'cpf', 'email', 'username',
-            'phone', 'department', 'system_role', 'company_role',
-            'password', 'password_confirm',
+            'id', 'name', 'email', 'username',
+            'profile', 'password', 'password_confirm',
         ]
 
     def validate(self, attrs):
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError({'password_confirm': 'As senhas não conferem.'})
         return attrs
-
-    def validate_cpf(self, value):
-        cpf = ''.join(filter(str.isdigit, value))
-        if len(cpf) != 11:
-            raise serializers.ValidationError('CPF deve conter exatamente 11 dígitos.')
-        
-        # Validar zeros e sequencias identicas (ex: 11111111111)
-        if cpf in [str(i) * 11 for i in range(10)]:
-            raise serializers.ValidationError('CPF inválido.')
-
-        # Cálculo do primeiro dígito
-        soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
-        digito1 = 11 - (soma % 11)
-        if digito1 > 9:
-            digito1 = 0
-
-        # Cálculo do segundo dígito
-        soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
-        digito2 = 11 - (soma % 11)
-        if digito2 > 9:
-            digito2 = 0
-
-        if cpf[-2:] != f"{digito1}{digito2}":
-            raise serializers.ValidationError('CPF inválido (dígitos verificadores incorretos).')
-        
-        if User.objects.filter(cpf=value).exists():
-            raise serializers.ValidationError('Este CPF já está em uso.')
-            
-        return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -61,32 +31,32 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserListSerializer(serializers.ModelSerializer):
+    profile_display = serializers.CharField(source='get_profile_display', read_only=True)
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'email', 'cpf', 'phone',
-            'system_role', 'company_role', 'department',
+            'id', 'name', 'email', 'profile', 'profile_display',
             'is_active', 'created_at',
         ]
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
+    profile_display = serializers.CharField(source='get_profile_display', read_only=True)
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'cpf', 'email', 'username',
-            'phone', 'department', 'system_role', 'company_role',
-            'is_active', 'last_login', 'created_at', 'updated_at',
+            'id', 'name', 'email', 'username',
+            'profile', 'profile_display',
+            'is_active', 'last_login', 'created_at',
         ]
-        read_only_fields = ['last_login', 'created_at', 'updated_at']
+        read_only_fields = ['last_login', 'created_at']
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'name', 'phone', 'department',
-            'system_role', 'company_role', 'is_active',
+            'name', 'profile', 'is_active',
         ]
 
 

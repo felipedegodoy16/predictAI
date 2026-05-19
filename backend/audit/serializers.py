@@ -6,5 +6,5 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuditLog
-        fields = ['id', 'user', 'user_name', 'action', 'entity_type', 'entity_id', 'description', 'timestamp']
+        fields = ['id', 'user', 'user_name', 'table_name', 'record_id', 'field_name', 'old_value', 'new_value', 'timestamp']
         read_only_fields = fields

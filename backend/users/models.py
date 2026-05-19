@@ -1,51 +1,32 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-
 class User(AbstractUser):
-    class SystemRole(models.TextChoices):
-        ADMIN = 'ADMIN', 'Administrador'
-        TECHNICIAN = 'TECHNICIAN', 'Tecnico'
-        MANAGER = 'MANAGER', 'Gestor'
+    class Profile(models.TextChoices):
+        ADMINISTRADOR = 'administrador', 'Administrador'
+        OPERADOR = 'operador', 'Operador'
+        VISUALIZADOR = 'visualizador', 'Visualizador'
 
-    class CompanyRole(models.TextChoices):
-        MANAGER = 'MANAGER', 'Gerente'
-        ANALYST = 'ANALYST', 'Analista'
-        INTERN = 'INTERN', 'Estagiario'
-        DIRECTOR = 'DIRECTOR', 'Diretor'
-        TECHNICIAN = 'TECHNICIAN', 'Tecnico'
-        OPERATOR = 'OPERATOR', 'Operador'
-
-    username = models.CharField(max_length=150, unique=True, blank=True)
-    name = models.CharField(max_length=255)
-    cpf = models.CharField(max_length=14, unique=True)
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=20, blank=True, default='')
-    department = models.CharField(max_length=100, blank=True, default='')
-
-    system_role = models.CharField(
+    # Removing unused AbstractUser fields where not needed, but we keep username since it's required by Django by default
+    username = models.CharField(max_length=150, unique=True, blank=True, null=True)
+    name = models.CharField(max_length=150)
+    email = models.EmailField(unique=True, max_length=150)
+    profile = models.CharField(
         max_length=20,
-        choices=SystemRole.choices,
-        default=SystemRole.TECHNICIAN,
+        choices=Profile.choices,
+        default=Profile.VISUALIZADOR,
     )
-    company_role = models.CharField(
-        max_length=20,
-        choices=CompanyRole.choices,
-        default=CompanyRole.OPERATOR,
-    )
-
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'name', 'cpf']
+    REQUIRED_FIELDS = ['name']
 
     class Meta:
         ordering = ['name']
 
     def __str__(self):
-        return f'{self.name} ({self.system_role})'
-
+        return f'{self.name} ({self.get_profile_display()})'
 
 class PasswordResetCode(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reset_codes')

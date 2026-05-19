@@ -11,3 +11,4 @@ numpy>=1.26
 scipy>=1.13
 pytest>=8.0
 pytest-django>=4.8
+psycopg2-binary>=2.9

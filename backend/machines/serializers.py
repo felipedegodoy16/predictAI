@@ -1,40 +1,50 @@
 from rest_framework import serializers
-from .models import Machine
+from .models import Machine, MachineStatus
+
+
+class MachineStatusSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    class Meta:
+        model = MachineStatus
+        fields = ['id', 'status', 'status_display', 'reason', 'timestamp']
 
 
 class MachineListSerializer(serializers.ModelSerializer):
+    current_status = serializers.SerializerMethodField()
+
     class Meta:
         model = Machine
         fields = [
-            'id', 'name', 'serial_number', 'model',
-            'location', 'status', 'installation_date', 'created_at',
+            'id', 'production_line', 'manufacturer', 'model',
+            'serial_number', 'installation_date', 'current_status'
         ]
+
+    def get_current_status(self, obj):
+        status = obj.statuses.first()
+        if status:
+            return MachineStatusSerializer(status).data
+        return None
 
 
 class MachineSerializer(serializers.ModelSerializer):
-    created_by_name = serializers.CharField(source='created_by.name', read_only=True)
+    statuses = MachineStatusSerializer(many=True, read_only=True)
+    current_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Machine
         fields = [
-            'id', 'name', 'serial_number', 'model',
-            'location', 'description', 'status', 'installation_date',
-            'created_by', 'created_by_name', 'created_at', 'updated_at',
+            'id', 'production_line', 'manufacturer', 'model',
+            'serial_number', 'installation_date', 'current_status', 'statuses'
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
 
-    def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
-        return super().create(validated_data)
+    def get_current_status(self, obj):
+        status = obj.statuses.first()
+        if status:
+            return MachineStatusSerializer(status).data
+        return None
 
 
 class MachineStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Machine
-        fields = ['status']
-
-
-class MachineApiKeySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Machine
-        fields = ['id', 'name', 'api_key']
+        model = MachineStatus
+        fields = ['status', 'reason']

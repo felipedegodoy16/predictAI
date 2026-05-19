@@ -27,8 +27,8 @@ from .permissions import IsAdmin, IsAdminOrSelf, IsAdminOrReadOnly
 class UserListCreateView(generics.ListCreateAPIView):
     queryset = User.objects.all()
     permission_classes = [IsAdminOrReadOnly]
-    search_fields = ['name', 'email', 'cpf', 'department']
-    filterset_fields = ['system_role', 'company_role', 'is_active']
+    search_fields = ['name', 'email']
+    filterset_fields = ['profile', 'is_active']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
 
@@ -42,10 +42,11 @@ class UserListCreateView(generics.ListCreateAPIView):
         instance = serializer.save()
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.CREATE,
-            entity_type='User',
-            entity_id=str(instance.id),
-            description=f"Usuario '{instance.email}' registrado."
+            table_name='USUARIO',
+            record_id=instance.id,
+            field_name='NOME',
+            old_value=None,
+            new_value=instance.name
         )
 
 
@@ -63,23 +64,25 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = serializer.save()
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.UPDATE,
-            entity_type='User',
-            entity_id=str(instance.id),
-            description=f"Usuario '{instance.email}' atualizado."
+            table_name='USUARIO',
+            record_id=instance.id,
+            field_name='NOME',
+            old_value='',
+            new_value=instance.name
         )
 
     def perform_destroy(self, instance):
         from audit.models import AuditLog
         email = instance.email
-        id_str = str(instance.id)
+        id_val = instance.id
         instance.delete()
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.DELETE,
-            entity_type='User',
-            entity_id=id_str,
-            description=f"Usuario '{email}' removido."
+            table_name='USUARIO',
+            record_id=id_val,
+            field_name='EMAIL',
+            old_value=email,
+            new_value='Deletado'
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -89,7 +92,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {'detail': 'Voce nao pode excluir sua propria conta.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if request.user.system_role != 'ADMIN':
+        if request.user.profile != 'administrador':
             return Response(
                 {'detail': 'Apenas administradores podem excluir usuarios.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -152,7 +155,6 @@ class ValidateResetCodeView(APIView):
         code = serializer.validated_data['code']
         
         user = User.objects.get(email=email)
-        # Buscar código válido nos últimos 15 min
         time_threshold = timezone.now() - timedelta(minutes=15)
         
         reset_code = PasswordResetCode.objects.filter(user=user, code=code, created_at__gte=time_threshold).first()
@@ -180,7 +182,6 @@ class ResetPasswordWithCodeView(APIView):
         if reset_code:
             user.set_password(new_password)
             user.save()
-            # Opcional: apagar código após uso
             PasswordResetCode.objects.filter(user=user).delete()
             return Response({'detail': 'Senha alterada com sucesso.'}, status=status.HTTP_200_OK)
             

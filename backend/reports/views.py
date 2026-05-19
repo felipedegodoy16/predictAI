@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from datetime import timedelta
 from alerts.models import Alert
-from machines.models import Machine
+from machines.models import Machine, MachineStatus
 from sensors.models import SensorReading
 from users.models import User
 from audit.models import AuditLog
@@ -32,41 +32,37 @@ class FailureReportView(APIView):
         start, end = _parse_date_range(request)
 
         queryset = Alert.objects.filter(
-            created_at__gte=start,
-            created_at__lte=end,
-        ).select_related('machine', 'sensor', 'resolved_by')
+            timestamp__gte=start,
+            timestamp__lte=end,
+        ).select_related('machine', 'reading')
 
         if machine_id:
             queryset = queryset.filter(machine_id=machine_id)
 
-        queryset = queryset.order_by('-created_at')
+        queryset = queryset.order_by('-timestamp')
 
         if output_format == 'json':
             data = [
                 {
                     'id': a.id,
-                    'machine': a.machine.name,
-                    'sensor': a.sensor.name if a.sensor else '-',
-                    'title': a.title,
-                    'risk_level': a.get_risk_level_display(),
-                    'status': a.get_status_display(),
-                    'created_at': a.created_at.strftime('%d/%m/%Y %H:%M'),
-                    'resolved_at': a.resolved_at.strftime('%d/%m/%Y %H:%M') if a.resolved_at else '-',
+                    'machine': a.machine.serial_number,
+                    'type': a.get_alert_type_display(),
+                    'criticality': a.get_criticality_display(),
+                    'viewed': 'Sim' if a.viewed else 'Nao',
+                    'timestamp': a.timestamp.strftime('%d/%m/%Y %H:%M'),
                 }
                 for a in queryset
             ]
             return Response({'count': len(data), 'results': data})
 
-        headers = ['ID', 'Maquina', 'Sensor', 'Titulo', 'Risco', 'Status', 'Criado em', 'Resolvido em']
+        headers = ['ID', 'Maquina (Serie)', 'Tipo', 'Criticidade', 'Visualizado', 'Data']
         rows = [
             [
-                a.id, a.machine.name,
-                a.sensor.name if a.sensor else '-',
-                a.title,
-                a.get_risk_level_display(),
-                a.get_status_display(),
-                a.created_at.strftime('%d/%m/%Y %H:%M'),
-                a.resolved_at.strftime('%d/%m/%Y %H:%M') if a.resolved_at else '-',
+                a.id, a.machine.serial_number,
+                a.get_alert_type_display(),
+                a.get_criticality_display(),
+                'Sim' if a.viewed else 'Nao',
+                a.timestamp.strftime('%d/%m/%Y %H:%M'),
             ]
             for a in queryset
         ]
@@ -101,30 +97,29 @@ class PerformanceReportView(APIView):
 
         rows = []
         for machine in machines:
-            total_alerts = Alert.objects.filter(machine=machine, created_at__gte=start, created_at__lte=end).count()
-            open_alerts = Alert.objects.filter(machine=machine, status='OPEN').count()
-            high_risk = Alert.objects.filter(machine=machine, risk_level='HIGH', created_at__gte=start, created_at__lte=end).count()
+            total_alerts = Alert.objects.filter(machine=machine, timestamp__gte=start, timestamp__lte=end).count()
+            open_alerts = Alert.objects.filter(machine=machine, viewed=False).count()
+            high_risk = Alert.objects.filter(machine=machine, criticality=Alert.Criticality.ALTA, timestamp__gte=start, timestamp__lte=end).count()
             total_readings = SensorReading.objects.filter(sensor__machine=machine, timestamp__gte=start, timestamp__lte=end).count()
-            anomalies = SensorReading.objects.filter(sensor__machine=machine, is_anomaly=True, timestamp__gte=start, timestamp__lte=end).count()
-            anomaly_rate = round(anomalies / total_readings * 100, 2) if total_readings else 0
+            
+            latest_status = machine.statuses.order_by('-timestamp').first()
+            status_display = latest_status.get_status_display() if latest_status else 'Desconhecido'
 
             rows.append({
-                'machine': machine.name,
-                'status': machine.get_status_display(),
-                'location': machine.location,
+                'machine': machine.serial_number,
+                'status': status_display,
                 'total_alerts': total_alerts,
-                'open_alerts': open_alerts,
+                'unviewed_alerts': open_alerts,
                 'high_risk_alerts': high_risk,
                 'total_readings': total_readings,
-                'anomaly_rate_pct': anomaly_rate,
             })
 
         if output_format == 'json':
             return Response({'count': len(rows), 'results': rows})
 
-        headers = ['Maquina', 'Status', 'Localizacao', 'Total Alertas', 'Alertas Abertos', 'Alto Risco', 'Leituras', 'Taxa Anomalia (%)']
+        headers = ['Maquina (Serie)', 'Status', 'Total Alertas', 'Alertas Nao Lidos', 'Alto Risco', 'Leituras']
         export_rows = [
-            [r['machine'], r['status'], r['location'], r['total_alerts'], r['open_alerts'], r['high_risk_alerts'], r['total_readings'], r['anomaly_rate_pct']]
+            [r['machine'], r['status'], r['total_alerts'], r['unviewed_alerts'], r['high_risk_alerts'], r['total_readings']]
             for r in rows
         ]
         summary = {'Periodo': f'{start[:10]} a {end[:10]}', 'Maquinas analisadas': len(rows)}
@@ -150,32 +145,35 @@ class AlertReportView(APIView):
     def get(self, request):
         output_format = request.query_params.get('output', 'json')
         risk = request.query_params.get('risk')
-        status_filter = request.query_params.get('status')
         start, end = _parse_date_range(request)
 
         queryset = Alert.objects.filter(
-            created_at__gte=start,
-            created_at__lte=end,
-        ).select_related('machine', 'sensor')
+            timestamp__gte=start,
+            timestamp__lte=end,
+        ).select_related('machine', 'reading')
 
         if risk:
-            queryset = queryset.filter(risk_level=risk.upper())
-        if status_filter:
-            queryset = queryset.filter(status=status_filter.upper())
+            # try to match risk text to choice
+            risk = risk.upper()
+            if risk == 'ALTA':
+                queryset = queryset.filter(criticality=Alert.Criticality.ALTA)
+            elif risk == 'MEDIA':
+                queryset = queryset.filter(criticality=Alert.Criticality.MEDIA)
+            elif risk == 'BAIXA':
+                queryset = queryset.filter(criticality=Alert.Criticality.BAIXA)
 
-        queryset = queryset.order_by('-created_at')
+        queryset = queryset.order_by('-timestamp')
 
-        headers = ['Maquina', 'Sensor', 'Tipo', 'Risco', 'Status', 'Titulo', 'Recomendacao', 'Data']
+        headers = ['Maquina', 'Tipo', 'Criticidade', 'Valor Detectado', 'Valor Limite', 'Lido', 'Data']
         rows_data = [
             [
-                a.machine.name,
-                a.sensor.name if a.sensor else '-',
+                a.machine.serial_number,
                 a.get_alert_type_display(),
-                a.get_risk_level_display(),
-                a.get_status_display(),
-                a.title,
-                a.recommendation[:80] if a.recommendation else '-',
-                a.created_at.strftime('%d/%m/%Y %H:%M'),
+                a.get_criticality_display(),
+                a.detected_value,
+                a.limit_value,
+                'Sim' if a.viewed else 'Nao',
+                a.timestamp.strftime('%d/%m/%Y %H:%M'),
             ]
             for a in queryset
         ]
@@ -210,49 +208,49 @@ class DynamicExportView(APIView):
         if not entity:
             return Response({'detail': 'Entidade (entity) e obrigatoria.'}, status=400)
 
-        # Basic entity resolution directly pulling all data for MVP
         title = ""
         headers = []
         rows = []
         
         if entity == 'machines':
             title = 'Relatório Geral de Máquinas'
-            headers = ['ID', 'Nome', 'Numero de Serie', 'Modelo', 'Localizacao', 'Status']
+            headers = ['ID', 'Fabricante', 'Numero de Serie', 'Modelo', 'Linha de Producao']
             machines = Machine.objects.all()
             for m in machines:
                 rows.append([
                     str(m.id),
-                    m.name,
+                    m.manufacturer,
                     m.serial_number,
                     m.model or '-',
-                    m.location or '-',
-                    m.get_status_display()
+                    m.production_line or '-'
                 ])
                 
         elif entity == 'users':
             title = 'Relatório Dinâmico de Usuários'
-            headers = ['Nome', 'Email', 'Cargo', 'Status do Acesso', 'Ultimo Login']
+            headers = ['Nome', 'Email', 'Perfil', 'Status do Acesso', 'Ultimo Login']
             users = User.objects.all()
             for u in users:
                 rows.append([
                     u.name,
                     u.email,
-                    u.get_role_display(),
+                    u.get_profile_display(),
                     'Ativo' if u.is_active else 'Desativado',
                     u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else 'Nunca'
                 ])
                 
         elif entity == 'audit':
             title = 'Relatório de Logs de Auditoria'
-            headers = ['Data/Hora', 'Usuário', 'Ação', 'Alvo', 'Descrição']
-            logs = AuditLog.objects.all().select_related('user')[:500] # Limite para não sobrecarregar
+            headers = ['Data/Hora', 'Usuário', 'Tabela', 'ID Registro', 'Campo', 'Valor Antigo', 'Valor Novo']
+            logs = AuditLog.objects.all().select_related('user')[:500]
             for log in logs:
                 rows.append([
                     log.timestamp.strftime('%d/%m/%Y %H:%M'),
                     log.user.name if log.user else 'Sistema',
-                    log.get_action_display(),
-                    log.entity_type,
-                    log.description
+                    log.table_name,
+                    str(log.record_id),
+                    log.field_name,
+                    log.old_value,
+                    log.new_value
                 ])
         else:
             return Response({'detail': 'Entidade desconhecida.'}, status=400)

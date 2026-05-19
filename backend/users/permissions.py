@@ -6,7 +6,7 @@ class IsAdmin(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.user.system_role == 'ADMIN'
+            request.user.profile == 'administrador'
         )
 
 
@@ -15,7 +15,7 @@ class IsAdminOrTechnician(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.user.system_role in ('ADMIN', 'TECHNICIAN')
+            request.user.profile in ('administrador', 'operador')
         )
 
 
@@ -24,7 +24,7 @@ class IsAdminOrSelf(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            (request.user.system_role == 'ADMIN' or request.user == obj)
+            (request.user.profile == 'administrador' or request.user == obj)
         )
 
 
@@ -33,7 +33,7 @@ class IsManager(BasePermission):
         return bool(
             request.user and
             request.user.is_authenticated and
-            request.user.system_role == 'MANAGER'
+            request.user.profile == 'operador'
         )
         
 
@@ -43,4 +43,4 @@ class IsAdminOrReadOnly(BasePermission):
             return False
         if request.method in ('GET', 'HEAD', 'OPTIONS'):
             return True
-        return request.user.system_role == 'ADMIN'
+        return request.user.profile == 'administrador'

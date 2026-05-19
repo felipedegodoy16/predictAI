@@ -1,30 +1,25 @@
 from rest_framework import viewsets, permissions
-from .models import WorkOrder, WorkOrderStatus, ErrorType
-from .serializers import WorkOrderSerializer, WorkOrderStatusSerializer, ErrorTypeSerializer
+from .models import WorkOrder, Maintenance
+from .serializers import WorkOrderSerializer, MaintenanceSerializer
 from .permissions import IsAdminOrRelatedOrReadOnly
-
-class WorkOrderStatusViewSet(viewsets.ModelViewSet):
-    queryset = WorkOrderStatus.objects.all()
-    serializer_class = WorkOrderStatusSerializer
-    
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
-
-class ErrorTypeViewSet(viewsets.ModelViewSet):
-    queryset = ErrorType.objects.all()
-    serializer_class = ErrorTypeSerializer
-    
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
 
 class WorkOrderViewSet(viewsets.ModelViewSet):
     queryset = WorkOrder.objects.all()
     serializer_class = WorkOrderSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrRelatedOrReadOnly]
+    filterset_fields = ['status', 'priority', 'order_type', 'machine']
+    search_fields = ['machine__serial_number', 'production_line']
+    ordering_fields = ['opening_date', 'status', 'priority']
+    ordering = ['-opening_date']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        serializer.save(opened_by=self.request.user)
+
+class MaintenanceViewSet(viewsets.ModelViewSet):
+    queryset = Maintenance.objects.all()
+    serializer_class = MaintenanceSerializer
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser] # For now only admins manage maintenances
+    filterset_fields = ['machine', 'work_order']
+    search_fields = ['description', 'solution']
+    ordering_fields = ['performed_date']
+    ordering = ['-performed_date']

@@ -2,34 +2,40 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Machine
+from .models import Machine, MachineStatus
 from .serializers import (
     MachineListSerializer,
     MachineSerializer,
     MachineStatusUpdateSerializer,
-    MachineApiKeySerializer,
 )
 from .permissions import IsAdminOrTechnicianOrReadOnly, IsAdminForDelete
-from users.permissions import IsAdmin
 
 
 class MachineListCreateView(generics.ListCreateAPIView):
-    queryset = Machine.objects.select_related('created_by').all()
+    queryset = Machine.objects.all()
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
-    filterset_fields = ['status', 'location']
-    search_fields = ['name', 'serial_number', 'model', 'location']
-    ordering_fields = ['name', 'status', 'created_at']
-    ordering = ['name']
+    search_fields = ['production_line', 'manufacturer', 'model', 'serial_number']
+    ordering_fields = ['manufacturer', 'installation_date']
+    ordering = ['manufacturer']
 
     def perform_create(self, serializer):
         from audit.models import AuditLog
         instance = serializer.save()
+        
+        # Create initial status
+        MachineStatus.objects.create(
+            machine=instance,
+            status=MachineStatus.Status.ACTIVE,
+            reason='Criacao inicial'
+        )
+        
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.CREATE,
-            entity_type='Machine',
-            entity_id=str(instance.id),
-            description=f"Equipamento '{instance.name}' registrado."
+            table_name='MAQUINA',
+            record_id=instance.id,
+            field_name='NUM_SERIE',
+            old_value=None,
+            new_value=instance.serial_number
         )
 
     def get_serializer_class(self):
@@ -39,7 +45,7 @@ class MachineListCreateView(generics.ListCreateAPIView):
 
 
 class MachineDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Machine.objects.select_related('created_by').all()
+    queryset = Machine.objects.all()
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly, IsAdminForDelete]
     serializer_class = MachineSerializer
 
@@ -48,47 +54,49 @@ class MachineDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = serializer.save()
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.UPDATE,
-            entity_type='Machine',
-            entity_id=str(instance.id),
-            description=f"Equipamento '{instance.name}' atualizado."
+            table_name='MAQUINA',
+            record_id=instance.id,
+            field_name='*',
+            old_value='--',
+            new_value='Atualizado'
         )
 
     def perform_destroy(self, instance):
         from audit.models import AuditLog
-        name = instance.name
-        id_str = str(instance.id)
+        serial = instance.serial_number
+        id_str = instance.id
         instance.delete()
         AuditLog.objects.create(
             user=self.request.user,
-            action=AuditLog.Action.DELETE,
-            entity_type='Machine',
-            entity_id=id_str,
-            description=f"Equipamento '{name}' removido."
+            table_name='MAQUINA',
+            record_id=id_str,
+            field_name='NUM_SERIE',
+            old_value=serial,
+            new_value='Deletado'
         )
 
 
 class MachineStatusUpdateView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
 
-    def patch(self, request, pk):
+    def post(self, request, pk):
         try:
             machine = Machine.objects.get(pk=pk)
         except Machine.DoesNotExist:
             return Response({'detail': 'Maquina nao encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = MachineStatusUpdateSerializer(machine, data=request.data, partial=True)
+            
+        serializer = MachineStatusUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class MachineApiKeyView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    def get(self, request, pk):
-        try:
-            machine = Machine.objects.get(pk=pk)
-        except Machine.DoesNotExist:
-            return Response({'detail': 'Maquina nao encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = MachineApiKeySerializer(machine)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer.save(machine=machine)
+        
+        from audit.models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            table_name='STATUS_MAQUINA',
+            record_id=machine.id,
+            field_name='STATUS',
+            old_value='--',
+            new_value=serializer.validated_data['status']
+        )
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

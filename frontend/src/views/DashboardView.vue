@@ -76,6 +76,21 @@
             <p class="text-sm font-medium text-[var(--text-muted)]">{{ widget.subtitle || 'Métricas operacionais' }}</p>
           </div>
           
+          <!-- Time Range Selector (only for line_temp chart) -->
+          <div v-if="widget.type === 'line_temp'" class="flex items-center gap-1 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl p-1">
+            <button
+              v-for="opt in RANGE_OPTIONS"
+              :key="opt.days"
+              @click="setChartRange(opt.days)"
+              class="px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200"
+              :class="chartRangeDays === opt.days
+                ? 'bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+
           <!-- Actions Menu -->
           <div class="relative flex gap-2">
             <button @click="hideWidget(widget.id)" title="Ocultar Gráfico" class="p-2 rounded-lg bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)] hover:bg-[var(--color-vintage-rose)] hover:text-[var(--bg-app)] transition-colors group-hover:opacity-100 lg:opacity-0 focus:opacity-100">
@@ -336,15 +351,31 @@ const DEFAULT_WIDGETS = [
 
 const widgets = ref([])
 const chartData = ref(null)
+const chartRangeDays = ref(30) // default: 1 mês
+
+const RANGE_OPTIONS = [
+  { label: '1M',  days: 30  },
+  { label: '3M',  days: 90  },
+  { label: '6M',  days: 180 },
+]
+
+const fetchChartData = (days) => {
+  api.get(`/analytics/charts/?days=${days}`).then(res => {
+    chartData.value = res.data
+  }).catch(err => console.error('Failed to load chart data', err))
+}
+
+const setChartRange = (days) => {
+  chartRangeDays.value = days
+  fetchChartData(days)
+}
 
 const visibleWidgets = computed(() => {
   return widgets.value.filter(w => w.isVisible)
 })
 
 onMounted(() => {
-  api.get('/analytics/charts/').then(res => {
-    chartData.value = res.data
-  }).catch(err => console.error('Failed to load chart data', err))
+  fetchChartData(chartRangeDays.value)
 
   const stored = localStorage.getItem('predictai_widgets')
   if (stored) {

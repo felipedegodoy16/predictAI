@@ -22,7 +22,7 @@ Sensor.objects.all().delete()
 MachineStatus.objects.all().delete()
 Machine.objects.all().delete()
 
-# Ensure we have Kanban statuses
+# Garante que os status do Kanban existem
 STATUSES = [
     {"name": "To Do",       "order_index": 0, "is_closed": False},
     {"name": "In Progress", "order_index": 1, "is_closed": False},
@@ -37,10 +37,10 @@ for s in STATUSES:
 
 print("Criando Máquinas...")
 machines_data = [
-    {"prod": "Linha A", "fab": "Siemens", "model": "Motor Indução X1", "sn": "MOT-1001"},
-    {"prod": "Linha B", "fab": "Atlas Copco", "model": "Compressor GA37", "sn": "COMP-2002"},
-    {"prod": "Linha A", "fab": "Romi", "model": "Torno CNC", "sn": "CNC-3003"},
-    {"prod": "Linha C", "fab": "Weg", "model": "Bomba Centrífuga", "sn": "BOM-4004"},
+    {"prod": "Linha A", "fab": "Siemens",     "model": "Motor Indução X1", "sn": "MOT-1001"},
+    {"prod": "Linha B", "fab": "Atlas Copco", "model": "Compressor GA37",  "sn": "COMP-2002"},
+    {"prod": "Linha A", "fab": "Romi",        "model": "Torno CNC",        "sn": "CNC-3003"},
+    {"prod": "Linha C", "fab": "Weg",         "model": "Bomba Centrífuga", "sn": "BOM-4004"},
 ]
 
 machines = []
@@ -50,16 +50,33 @@ for m in machines_data:
         manufacturer=m["fab"],
         model=m["model"],
         serial_number=m["sn"],
-        installation_date=timezone.now().date() - timedelta(days=random.randint(100, 1000))
+        installation_date=timezone.now().date() - timedelta(days=random.randint(200, 1200))
     )
     MachineStatus.objects.create(machine=obj, status=MachineStatus.Status.ACTIVE, reason="Seed start")
     machines.append(obj)
 
-print("Criando Sensores e Leituras (Últimos 14 dias)...")
-now = timezone.now()
+# ──────────────────────────────────────────────────────────────
+# Perfis de comportamento por máquina (variação realista)
+# ──────────────────────────────────────────────────────────────
+machine_profiles = [
+    # Siemens Motor — estável, poucos picos
+    {"t_base": (62, 72), "t_peak_chance": 0.015, "t_peak": (82, 96), "v_base": (1.2, 3.0), "v_peak_chance": 0.012, "v_peak": (5.2, 7.8)},
+    # Atlas Copco Compressor — roda quente, mais picos de vibração
+    {"t_base": (68, 78), "t_peak_chance": 0.025, "t_peak": (81, 93), "v_base": (1.8, 3.8), "v_peak_chance": 0.020, "v_peak": (5.5, 8.5)},
+    # Romi Torno CNC — frio e estável
+    {"t_base": (55, 70), "t_peak_chance": 0.010, "t_peak": (81, 90), "v_base": (1.0, 2.5), "v_peak_chance": 0.008, "v_peak": (5.1, 6.5)},
+    # Weg Bomba Centrífuga — a mais crítica, maior probabilidade de anomalias
+    {"t_base": (70, 79), "t_peak_chance": 0.030, "t_peak": (82, 98), "v_base": (2.0, 4.2), "v_peak_chance": 0.028, "v_peak": (5.3, 9.0)},
+]
 
-for machine in machines:
-    # Sensor 1: Temperatura
+print("Criando Sensores e Leituras (Ultimos 6 meses - leituras horarias)...")
+now = timezone.now()
+HISTORY_DAYS = 180  # 6 meses
+
+all_sensors = []
+for i, machine in enumerate(machines):
+    profile = machine_profiles[i]
+
     temp_sensor = Sensor.objects.create(
         machine=machine,
         sensor_type='Temperatura',
@@ -67,8 +84,6 @@ for machine in machines:
         description=f'Sensor Temp {machine.model}',
         limit_temp=80.0
     )
-    
-    # Sensor 2: Vibração
     vib_sensor = Sensor.objects.create(
         machine=machine,
         sensor_type='Vibração',
@@ -76,17 +91,18 @@ for machine in machines:
         description=f'Sensor Vibração {machine.model}',
         limit_temp=5.0
     )
+    all_sensors.append((machine, temp_sensor, vib_sensor, profile))
 
-    # Gerar leituras de hora em hora para os últimos 14 dias
     readings = []
-    for day_offset in range(14, -1, -1):
-        for hour in range(0, 24, 2):  # A cada 2 horas
+    for day_offset in range(HISTORY_DAYS, -1, -1):
+        for hour in range(0, 24):  # 1 leitura por hora
             record_time = now - timedelta(days=day_offset, hours=hour)
-            
-            # Temperatura base 65-75. Com picos aleatórios.
-            t_val = random.uniform(65.0, 75.0)
-            if random.random() > 0.98:  # 2% de chance de pico anômalo
-                t_val = random.uniform(81.0, 95.0)
+
+            # Temperatura com tendência sazonal sutil (ligeiramente mais alta no passado)
+            season_factor = 1 + 0.05 * (day_offset / HISTORY_DAYS)
+            t_val = random.uniform(*profile["t_base"]) * season_factor
+            if random.random() > (1 - profile["t_peak_chance"]):
+                t_val = random.uniform(*profile["t_peak"])
 
             readings.append(SensorReading(
                 machine=machine,
@@ -95,36 +111,44 @@ for machine in machines:
                 timestamp=record_time
             ))
 
-            # Vibração base 1.5 - 3.5. Com picos.
-            v_val = random.uniform(1.5, 3.5)
-            if random.random() > 0.98:
-                v_val = random.uniform(5.1, 7.5)
-                
+            # Vibração com picos esporádicos
+            v_val = random.uniform(*profile["v_base"])
+            if random.random() > (1 - profile["v_peak_chance"]):
+                v_val = random.uniform(*profile["v_peak"])
+
             readings.append(SensorReading(
                 machine=machine,
                 sensor=vib_sensor,
                 value=round(v_val, 2),
                 timestamp=record_time
             ))
-            
-    SensorReading.objects.bulk_create(readings)
 
-print("Criando Alertas...")
+    total = len(readings)
+    print(f"  -> {machine.model}: {total:,} leituras geradas. Salvando em lotes...")
+    batch_size = 2000
+    for idx in range(0, total, batch_size):
+        SensorReading.objects.bulk_create(readings[idx:idx + batch_size])
+
+print("Criando Alertas e Ordens de Serviço distribuídos no histórico...")
 from sensors.views import _auto_create_work_order, _broadcast_notification
 
-# Buscar leituras que ultrapassaram o limite e gerar alertas esparsos
-critical_readings = SensorReading.objects.filter(value__gt=5, sensor__sensor_type='Vibração').order_by('?')[:5]
-for reading in critical_readings:
-    alert = Alert.objects.create(
-        reading=reading,
-        machine=reading.machine,
-        alert_type=Alert.AlertType.VIBRACAO,
-        detected_value=reading.value,
-        limit_value=reading.sensor.limit_temp,
-        criticality=Alert.Criticality.ALTA,
-        timestamp=reading.timestamp
+for machine, temp_sensor, vib_sensor, _ in all_sensors:
+    critical_readings = (
+        SensorReading.objects
+        .filter(machine=machine, value__gt=5, sensor__sensor_type='Vibração')
+        .order_by('?')[:8]
     )
-    _auto_create_work_order(reading.machine, alert)
-    _broadcast_notification(alert)
+    for reading in critical_readings:
+        alert = Alert.objects.create(
+            reading=reading,
+            machine=reading.machine,
+            alert_type=Alert.AlertType.VIBRACAO,
+            detected_value=reading.value,
+            limit_value=reading.sensor.limit_temp,
+            criticality=Alert.Criticality.ALTA,
+            timestamp=reading.timestamp
+        )
+        _auto_create_work_order(reading.machine, alert)
+        _broadcast_notification(alert)
 
-print("Seed finalizado com sucesso!")
+print("\n[OK] Seed finalizado com sucesso! 6 meses de historico gerado.")

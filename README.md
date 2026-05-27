@@ -60,6 +60,20 @@ O backend ficará rodando em `http://127.0.0.1:8000/`.
 
 ---
 
+### Simulador de Máquinas Dinâmico
+
+O projeto possui um simulador de linha de comando que gera dados sintéticos em tempo real para as máquinas cadastradas e os envia via Webhook para a API (simulando sensores físicos).
+
+Para rodar o simulador:
+1. Com o backend já em execução, abra um novo terminal na pasta `backend`.
+2. Ative o ambiente virtual.
+3. Execute o comando:
+   ```bash
+   python manage.py run_simulator
+   ```
+
+---
+
 ### Configurando o Frontend
 
 Abra uma **nova janela ou aba de terminal** na raiz do projeto (deixe o backend rodando na anterior):

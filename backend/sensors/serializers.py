@@ -3,51 +3,43 @@ from .models import Sensor, SensorReading
 
 
 class SensorSerializer(serializers.ModelSerializer):
-    machine_name = serializers.CharField(source='machine.name', read_only=True)
-
     class Meta:
         model = Sensor
         fields = [
-            'id', 'machine', 'machine_name', 'name', 'description',
-            'sensor_type', 'unit', 'min_threshold', 'max_threshold',
-            'is_active', 'created_at', 'updated_at',
+            'id', 'machine', 'sensor_type', 'unit',
+            'description', 'limit_temp', 'min_limit', 'is_active',
         ]
-        read_only_fields = ['created_at', 'updated_at']
 
 
 class SensorReadingSerializer(serializers.ModelSerializer):
-    sensor_name = serializers.CharField(source='sensor.name', read_only=True)
+    sensor_type = serializers.CharField(source='sensor.sensor_type', read_only=True)
     sensor_unit = serializers.CharField(source='sensor.unit', read_only=True)
 
     class Meta:
         model = SensorReading
-        fields = [
-            'id', 'sensor', 'sensor_name', 'sensor_unit',
-            'value', 'timestamp', 'is_anomaly', 'anomaly_score', 'created_at',
-        ]
-        read_only_fields = ['is_anomaly', 'anomaly_score', 'created_at']
+        fields = ['id', 'sensor', 'sensor_type', 'sensor_unit', 'value', 'timestamp']
 
 
 class SensorReadingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SensorReading
-        fields = ['sensor', 'value', 'timestamp']
+        fields = ['sensor', 'value']
 
     def validate_sensor(self, sensor):
         if not sensor.is_active:
-            raise serializers.ValidationError('Este sensor esta inativo.')
+            raise serializers.ValidationError('Este sensor está inativo.')
         return sensor
 
 
 class SensorReadingBulkCreateSerializer(serializers.Serializer):
-    """Serializer para ingestao de multiplas leituras em um unico request."""
+    """Serializer para ingestão de múltiplas leituras em um único request."""
     readings = SensorReadingCreateSerializer(many=True)
 
     def validate_readings(self, readings):
         if not readings:
-            raise serializers.ValidationError('A lista de leituras nao pode estar vazia.')
+            raise serializers.ValidationError('A lista de leituras não pode estar vazia.')
         if len(readings) > 500:
             raise serializers.ValidationError(
-                'Maximo de 500 leituras por request. Divida em multiplos requests.'
+                'Máximo de 500 leituras por request. Divida em múltiplos requests.'
             )
         return readings

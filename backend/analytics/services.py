@@ -185,3 +185,78 @@ def get_maintenance_suggestions():
             })
 
     return sorted(suggestions, key=lambda s: s['open_alerts'], reverse=True)
+
+def get_chart_data(days=14):
+    from sensors.models import SensorReading
+    from alerts.models import Alert
+    from machines.models import Machine
+    from django.db.models.functions import TruncDate
+    
+    start_date = timezone.now() - timedelta(days=days)
+
+    # 1. Encontrar as 2 máquinas com mais alertas
+    top_machines = list(
+        Machine.objects.annotate(alert_count=Count('alerts'))
+        .order_by('-alert_count')[:2]
+    )
+
+    machine1_name = "Máquina 1"
+    machine2_name = "Máquina 2"
+    series1_data = []
+    series2_data = []
+    sorted_dates = []
+
+    if top_machines:
+        m1 = top_machines[0]
+        machine1_name = f"{m1.manufacturer} {m1.model}"
+        m2 = top_machines[1] if len(top_machines) > 1 else None
+        if m2:
+            machine2_name = f"{m2.manufacturer} {m2.model}"
+        
+        def get_daily_avg_for_machine(machine_obj):
+            readings = (
+                SensorReading.objects.filter(machine=machine_obj, sensor__sensor_type__icontains='Temp', timestamp__gte=start_date)
+                .annotate(date=TruncDate('timestamp'))
+                .values('date')
+                .annotate(avg_val=Avg('value'))
+                .order_by('date')
+            )
+            return {r['date'].strftime('%Y-%m-%d'): round(float(r['avg_val']), 2) for r in readings}
+
+        m1_data = get_daily_avg_for_machine(m1)
+        m2_data = get_daily_avg_for_machine(m2) if m2 else {}
+
+        dates_set = set(m1_data.keys()).union(set(m2_data.keys()))
+        sorted_dates = sorted(list(dates_set))
+
+        series1_data = [m1_data.get(d, 0) for d in sorted_dates]
+        series2_data = [m2_data.get(d, 0) for d in sorted_dates]
+
+    # Agrupamento de Alertas por Máquina para o gráfico de barras
+    alerts_agg = (
+        Alert.objects.filter(timestamp__gte=start_date)
+        .values(machine_name=F('machine__manufacturer'))
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    
+    alerts_machines = []
+    alerts_counts = []
+    for a in alerts_agg:
+        alerts_machines.append(a['machine_name'])
+        alerts_counts.append(a['total'])
+
+    return {
+        "dates": sorted_dates,
+        "legend_1": machine1_name,
+        "legend_2": machine2_name,
+        "series_1_data": series1_data,
+        "series_2_data": series2_data,
+        
+        # Mantendo para compatibilidade caso outro gráfico use
+        "temp_series": series1_data,
+        "vib_series": series2_data,
+
+        "alerts_machines": alerts_machines,
+        "alerts_counts": alerts_counts
+    }

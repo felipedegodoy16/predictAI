@@ -9,7 +9,17 @@ from .services import (
     get_machine_patterns,
     get_failure_prediction,
     get_maintenance_suggestions,
+    get_chart_data,
 )
+
+
+class ChartDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        days = int(request.query_params.get('days', 14))
+        data = get_chart_data(days=days)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class DashboardView(APIView):

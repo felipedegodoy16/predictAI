@@ -12,11 +12,17 @@ from .permissions import IsAdminOrTechnicianOrReadOnly, IsAdminForDelete
 
 
 class MachineListCreateView(generics.ListCreateAPIView):
-    queryset = Machine.objects.all()
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
     search_fields = ['production_line', 'manufacturer', 'model', 'serial_number']
     ordering_fields = ['manufacturer', 'installation_date']
     ordering = ['manufacturer']
+
+    def get_queryset(self):
+        return Machine.objects.prefetch_related(
+            'statuses',
+            'sensors',
+            'sensors__readings',
+        ).all()
 
     def perform_create(self, serializer):
         from audit.models import AuditLog
@@ -39,13 +45,13 @@ class MachineListCreateView(generics.ListCreateAPIView):
         )
 
     def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return MachineSerializer
-        return MachineListSerializer
+        return MachineSerializer
 
 
 class MachineDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Machine.objects.all()
+    queryset = Machine.objects.prefetch_related(
+        'statuses', 'sensors', 'sensors__readings'
+    ).all()
     permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly, IsAdminForDelete]
     serializer_class = MachineSerializer
 

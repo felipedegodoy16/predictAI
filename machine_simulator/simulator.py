@@ -7,6 +7,18 @@ import math
 import requests
 import json
 from datetime import datetime
+import sys
+import os
+import django
+
+# Setup Django ORM
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.append(base_dir)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
+django.setup()
+
+from machines.models import Machine
+from sensors.models import Sensor
 from config import API_BASE_URL, DEFAULT_MACHINE_ID, DEFAULT_SENSORS, SENSOR_SCENARIOS
 
 # ─────────────────────────────────────────────
@@ -161,9 +173,11 @@ class SimulatorApp(tk.Tk):
         self.machine_id  = tk.StringVar(value=str(DEFAULT_MACHINE_ID))
         self.api_url     = tk.StringVar(value=API_BASE_URL)
         self.interval    = tk.IntVar(value=3)
+        self.interval    = tk.IntVar(value=3)
         self.running     = False
         self._thread     = None
         self.sensor_cards: dict[str, SensorCard] = {}
+        self.machines_db = []
 
         self._build_ui()
         self._update_clock()
@@ -175,8 +189,6 @@ class SimulatorApp(tk.Tk):
         top = tk.Frame(self, bg=PANEL, height=60)
         top.pack(fill="x")
 
-        tk.Label(top, text="🏭", font=(FONT, 20), bg=PANEL, fg=ACCENT).pack(
-            side="left", padx=(16, 4), pady=10)
         tk.Label(top, text="PredictAI  Machine Simulator", fg=TEXT, bg=PANEL,
                  font=(FONT, 16, "bold")).pack(side="left", pady=10)
 
@@ -200,9 +212,13 @@ class SimulatorApp(tk.Tk):
                                             font=(FONT, 9))
 
         lbl("URL da API:").pack(side="left", padx=(16, 2))
-        ent(self.api_url, 40).pack(side="left")
-        lbl("  Machine ID:").pack(side="left", padx=(12, 2))
-        ent(self.machine_id, 10).pack(side="left")
+        ent(self.api_url, 30).pack(side="left")
+        
+        lbl("  Máquina:").pack(side="left", padx=(12, 2))
+        self.machine_cb_var = tk.StringVar()
+        self.machine_cb = ttk.Combobox(cfg, textvariable=self.machine_cb_var, state="readonly", width=35)
+        self.machine_cb.pack(side="left")
+        
         lbl("  Intervalo (s):").pack(side="left", padx=(12, 2))
         ent(self.interval, 4).pack(side="left")
 
@@ -281,13 +297,33 @@ class SimulatorApp(tk.Tk):
         self.stat_alerts= tk.Label(bot, text="Alertas gerados: 0", fg=YELLOW,
                                    bg=PANEL, font=(FONT, 9))
         self.stat_alerts.pack(side="left", padx=12)
+        self.stat_wo    = tk.Label(bot, text="OS abertas auto: 0", fg=ACCENT,
+                                   bg=PANEL, font=(FONT, 9))
+        self.stat_wo.pack(side="left", padx=12)
 
         self._sent = 0
         self._errs = 0
         self._alerts = 0
+        self._wo = 0
 
-        # Carregar sensores padrão
+        # Carregar máquinas e sensores padrão
+        self._load_machines_from_db()
         self._load_default_sensors()
+
+    def _load_machines_from_db(self):
+        try:
+            machines = Machine.objects.all()
+            self.machines_db = list(machines)
+            if self.machines_db:
+                values = [f"{m.id} - {m.manufacturer} {m.model} ({m.serial_number})" for m in self.machines_db]
+                self.machine_cb['values'] = values
+                self.machine_cb.current(0)
+            else:
+                self.machine_cb['values'] = ["Nenhuma máquina encontrada"]
+                self.machine_cb.current(0)
+        except Exception as e:
+            self.machine_cb['values'] = [f"Erro banco: {e}"]
+            self.machine_cb.current(0)
 
     # ─── Sensores ────────────────────────────────────────────────────────────
 
@@ -312,29 +348,35 @@ class SimulatorApp(tk.Tk):
                   "info")
 
     def _fetch_sensors(self):
-        """Busca sensores da API para a machine_id informada."""
-        mid = self.machine_id.get().strip()
-        if not mid:
-            messagebox.showwarning("Aviso", "Informe o Machine ID.")
+        """Busca sensores direto do banco de dados (ignorando a API de listagem)."""
+        selection = self.machine_cb_var.get()
+        if not selection or "Nenhuma" in selection or "Erro" in selection:
+            messagebox.showwarning("Aviso", "Selecione uma máquina válida.")
             return
-        url = f"{self.api_url.get().rstrip('/')}/api/sensors/?machine={mid}"
-        self._log(f"🔍 Buscando sensores em {url}", "info")
+            
+        mid = int(selection.split(" - ")[0])
+        self._log(f"🔍 Buscando sensores da máquina {mid} direto no banco...", "info")
 
-        def _fetch():
-            try:
-                r = requests.get(url, timeout=5)
-                if r.status_code == 200:
-                    data = r.json()
-                    results = data.get("results", data) if isinstance(data, dict) else data
-                    self._log(f"✔ {len(results)} sensores encontrados na API",
-                              "ok")
-                    self.after(0, lambda: self._render_api_sensors(results))
-                else:
-                    self._log(f"✗ HTTP {r.status_code}: {r.text[:80]}", "err")
-            except Exception as e:
-                self._log(f"✗ Erro ao buscar: {e}", "err")
-
-        threading.Thread(target=_fetch, daemon=True).start()
+        try:
+            sensors = Sensor.objects.filter(machine_id=mid, is_active=True)
+            if not sensors.exists():
+                self._log(f"✗ Nenhum sensor ativo encontrado para a máquina {mid}", "err")
+                return
+                
+            results = []
+            for s in sensors:
+                results.append({
+                    "id": s.id,
+                    "name": s.description or s.sensor_type,
+                    "unit": s.unit,
+                    "limit_temp": float(s.limit_temp) if s.limit_temp else 100.0,
+                    "min_limit": float(s.min_limit) if s.min_limit else 0.0,
+                })
+            
+            self._log(f"✔ {len(results)} sensores encontrados no banco", "ok")
+            self._render_api_sensors(results)
+        except Exception as e:
+            self._log(f"✗ Erro ao buscar no banco: {e}", "err")
 
     def _render_api_sensors(self, sensors):
         """Renderiza cards com sensores vindos da API."""
@@ -345,15 +387,20 @@ class SimulatorApp(tk.Tk):
         cols = 3
         for i, s in enumerate(sensors):
             sid = str(s["id"])
-            # Mapear campos da API para o formato interno
+            # Mapear campos do banco para o formato interno
+            limit_max = s.get("limit_temp") or 100.0
+            limit_min = s.get("min_limit") or 0.0
+            if limit_max <= limit_min:
+                limit_max = limit_min + 50.0
+                
+            span = limit_max - limit_min
+
             sinfo = {
-                "name":         s.get("name") or s.get("sensor_type", f"Sensor {sid}"),
+                "name":         s.get("name") or f"Sensor {sid}",
                 "unit":         s.get("unit", ""),
-                "normal_range": [0, float(s.get("limit_temp") or 100)],
-                "warning_range":[float(s.get("limit_temp") or 100) * 0.8,
-                                 float(s.get("limit_temp") or 100) * 0.95],
-                "critical_range":[float(s.get("limit_temp") or 100) * 0.95,
-                                  float(s.get("limit_temp") or 100) * 1.2],
+                "normal_range": [limit_min + (span*0.1), limit_max - (span*0.2)],
+                "warning_range":[limit_max - (span*0.2), limit_max * 0.95],
+                "critical_range":[limit_max * 0.95, limit_max * 1.2],
             }
             card = SensorCard(self.sensor_frame, sid, sinfo,
                               width=220, height=230)
@@ -416,14 +463,17 @@ class SimulatorApp(tk.Tk):
                 data = r.json()
                 created = data.get("created", len(readings))
                 alerts  = data.get("alerts_generated", 0)
+                wo_auto = data.get("work_orders_created", 0)
                 self._sent   += created
                 self._alerts += alerts
+                self._wo     += wo_auto
                 ts = datetime.now().strftime("%H:%M:%S")
-                self._log(
-                    f"[{ts}] ✔ {created} leituras enviadas"
-                    + (f" | ⚠ {alerts} alertas" if alerts else ""),
-                    "ok" if not alerts else "warn"
-                )
+                msg = f"[{ts}] OK {created} leituras enviadas"
+                if alerts:
+                    msg += f" | {alerts} alertas"
+                if wo_auto:
+                    msg += f" | {wo_auto} OS auto-abertas"
+                self._log(msg, "ok" if not (alerts or wo_auto) else ("err" if wo_auto else "warn"))
                 self.after(0, self._update_stats)
             else:
                 self._errs += 1
@@ -449,6 +499,7 @@ class SimulatorApp(tk.Tk):
         self.stat_sent.config(text=f"Enviados: {self._sent}")
         self.stat_err.config(text=f"Erros: {self._errs}")
         self.stat_alerts.config(text=f"Alertas gerados: {self._alerts}")
+        self.stat_wo.config(text=f"OS abertas auto: {self._wo}")
 
     def _update_clock(self):
         self.clock_lbl.config(

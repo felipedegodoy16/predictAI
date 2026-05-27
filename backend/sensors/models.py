@@ -7,6 +7,7 @@ class Sensor(models.Model):
     unit = models.CharField(max_length=20)
     description = models.CharField(max_length=150, null=True, blank=True)
     limit_temp = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    min_limit = models.DecimalField(max_digits=8, decimal_places=2, default=0.0)
     is_active = models.BooleanField(default=True)
 
     class Meta:

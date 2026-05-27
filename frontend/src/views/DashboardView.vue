@@ -292,6 +292,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { Activity, Settings2, EyeOff, Trash2, Edit3, PieChart as LucidePieChart, X, ShieldCheck, Sparkles, Check, PlusCircle, LayoutTemplate } from 'lucide-vue-next'
+import api from '@/services/api'
 
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -328,18 +329,23 @@ const showWidgetManager = ref(false)
 const editingWidgetId = ref(null)
 
 const DEFAULT_WIDGETS = [
-  { id: 'def_1', type: 'line_temp', isDefault: true, isVisible: true, title: 'Evolução de Temperatura X Vibração', subtitle: 'Média analítica (14 dias) duplo-eixo', span: 2 },
+  { id: 'def_1', type: 'line_temp', isDefault: true, isVisible: true, title: 'Comparativo Térmico Crítico', subtitle: 'As 2 máquinas com mais alertas', span: 2 },
   { id: 'def_2', type: 'radar_risk', isDefault: true, isVisible: true, title: 'Risco por Setor Global', subtitle: 'Matriz Paramétrica', span: 1 },
   { id: 'def_3', type: 'bar_freq', isDefault: true, isVisible: true, title: 'Frequência de Anomalias Reais', subtitle: 'Alarmes disparados por componente mecânico (Trimestre)', span: 3 }
 ]
 
 const widgets = ref([])
+const chartData = ref(null)
 
 const visibleWidgets = computed(() => {
   return widgets.value.filter(w => w.isVisible)
 })
 
 onMounted(() => {
+  api.get('/analytics/charts/').then(res => {
+    chartData.value = res.data
+  }).catch(err => console.error('Failed to load chart data', err))
+
   const stored = localStorage.getItem('predictai_widgets')
   if (stored) {
     try {
@@ -460,9 +466,11 @@ const saveCustomWidget = () => {
 // MASSIVE ECHARTS ADAPTER GENERATOR
 // ==========================================
 const getChartOption = (widget) => {
-  if (widget.type === 'line_temp') return defaultLineTempOption()
+  if (!chartData.value) return {}
+
+  if (widget.type === 'line_temp') return defaultLineTempOption(chartData.value)
   if (widget.type === 'radar_risk') return defaultRadarRiskOption()
-  if (widget.type === 'bar_freq') return defaultBarFreqOption()
+  if (widget.type === 'bar_freq') return defaultBarFreqOption(chartData.value)
 
   // Grab color. If colorTheme isn't in availableColors, it's a Custom hex color string!
   const colorHex = availableColors[widget.colorTheme] || widget.colorTheme || vColors.Mint
@@ -474,17 +482,17 @@ const getChartOption = (widget) => {
   else if (colorHex === vColors.Rose) secondaryColorHex = vColors.Primary
   else secondaryColorHex = '#333' // Safe fallback for custom hex blending
   
-  // Fake generic structures tailored for the AI context
-  let mockXAxis = ['Mês 1', 'Mês 2', 'Mês 3', 'Mês 4', 'Mês 5', 'Mês 6']
-  let mockData1 = [12, 43, 20, 56, 45, 66]
-  let mockData2 = [8, 30, 25, 40, 60, 55] // Used for compares/stacks
+  // Generic structures
+  let mockXAxis = chartData.value.dates || ['Mês 1', 'Mês 2', 'Mês 3', 'Mês 4', 'Mês 5', 'Mês 6']
+  let mockData1 = chartData.value.temp_series || [12, 43, 20, 56, 45, 66]
+  let mockData2 = chartData.value.vib_series || [8, 30, 25, 40, 60, 55] 
   let maxBounds = 100
   
-  if (widget.metric === 'temp') { mockData1 = [75, 82, 85, 78, 90, 88]; mockData2 = [2.1, 2.5, 3.0, 2.8, 3.5, 3.1]; maxBounds=100; }
+  if (widget.metric === 'temp') { mockData1 = chartData.value.temp_series || []; mockData2 = chartData.value.vib_series || []; maxBounds=100; }
+  if (widget.metric === 'vib') { mockData1 = chartData.value.vib_series || []; mockData2 = chartData.value.temp_series || []; maxBounds=6; }
   if (widget.metric === 'cost') { mockData1 = [5000, 4200, 8000, 6300, 7100, 8500]; mockData2 = [4000, 4100, 6000, 6500, 6000, 8000]; maxBounds=10000;}
   if (widget.metric === 'energy') { mockData1 = [120, 150, 110, 200, 180, 220]; mockData2 = [110, 130, 100, 180, 150, 190]; maxBounds=300;}
   if (widget.metric === 'prod') { mockData1 = [2, 0, 1, 4, 3, 0]; mockData2 = [0, 1, 0, 2, 1, 0]; maxBounds=5;}
-  if (widget.metric === 'vib') { mockData1 = [2.1, 2.8, 3.6, 3.0, 4.2, 5.0]; mockData2 = [1.8, 2.5, 3.5, 3.2, 4.0, 4.5]; maxBounds=6; }
 
   // 1. SIMPLE LINE
   if (widget.type === 'line') {
@@ -625,19 +633,18 @@ const getChartOption = (widget) => {
   return {}
 }
 
-const defaultLineTempOption = () => ({
-  color: [vColors.Mint, vColors.Mustard],
+const defaultLineTempOption = (data) => ({
+  color: [vColors.Rose, vColors.Mustard],
   tooltip: { trigger: 'axis', appendToBody: true, backgroundColor: 'rgba(253, 251, 247, 0.95)', borderColor: '#e2dac9', textStyle: { color: '#2A2626' } },
-  legend: { data: ['Temperatura (°C)', 'Vibração (mm/s)'], textStyle: { color: textColor }, bottom: 5 },
+  legend: { data: [data.legend_1 || 'Máquina 1', data.legend_2 || 'Máquina 2'], textStyle: { color: textColor }, bottom: 5 },
   grid: { left: '3%', right: '5%', bottom: '15%', top: '12%', containLabel: true },
-  xAxis: { type: 'category', boundaryGap: false, data: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14'], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
+  xAxis: { type: 'category', boundaryGap: false, data: data.dates || [], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
   yAxis: [
     { type: 'value', name: 'Temp (°C)', splitLine: { lineStyle: { color: gridColor, type: 'dashed' } }, axisLabel: { color: textColor }, nameTextStyle: { color: textColor } },
-    { type: 'value', name: 'Vibração', position: 'right', splitLine: { show: false }, axisLabel: { color: textColor } }
   ],
   series: [
-    { name: 'Temperatura (°C)', type: 'line', smooth: true, lineStyle: { width: 4 }, showSymbol: false, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(144, 169, 158, 0.5)' }, { offset: 1, color: 'rgba(144, 169, 158, 0.0)' }] } }, data: [65, 68, 66, 75, 82, 85, 78, 70, 68, 69, 72, 80, 88, 85], animationDuration: 2000, animationEasing: 'cubicOut' },
-    { name: 'Vibração (mm/s)', type: 'line', yAxisIndex: 1, smooth: true, lineStyle: { width: 3, type: 'dashed' }, showSymbol: false, itemStyle: { color: vColors.Mustard }, data: [2.1, 2.3, 2.8, 3.5, 4.2, 4.0, 3.2, 2.5, 2.6, 2.9, 3.1, 4.5, 5.2, 4.8], animationDuration: 2500, animationEasing: 'cubicOut' }
+    { name: data.legend_1 || 'Máquina 1', type: 'line', smooth: true, lineStyle: { width: 4 }, showSymbol: false, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(198, 159, 155, 0.5)' }, { offset: 1, color: 'rgba(198, 159, 155, 0.0)' }] } }, data: data.series_1_data || data.temp_series || [], animationDuration: 2000, animationEasing: 'cubicOut' },
+    { name: data.legend_2 || 'Máquina 2', type: 'line', smooth: true, lineStyle: { width: 3, type: 'dashed' }, showSymbol: false, itemStyle: { color: vColors.Mustard }, data: data.series_2_data || data.vib_series || [], animationDuration: 2500, animationEasing: 'cubicOut' }
   ]
 })
 
@@ -662,18 +669,24 @@ const defaultRadarRiskOption = () => ({
   }]
 })
 
-const defaultBarFreqOption = () => ({
-  color: [vColors.Primary],
-  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true },
-  grid: { left: '2%', right: '2%', bottom: '5%', top: '10%', containLabel: true },
-  xAxis: { type: 'category', data: ['Motores', 'Compressor', 'Bombas', 'Tornos CNC', 'Injetoras', 'Fornos'], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontWeight: 'bold' } },
-  yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor, type: 'dotted' } }, axisLabel: { color: textColor } },
-  series: [{
-    name: 'Alertas', type: 'bar', barWidth: '30%', itemStyle: { borderRadius: [6, 6, 0, 0] },
-    data: [{ value: 45, itemStyle: { color: vColors.Primary } }, { value: 72, itemStyle: { color: vColors.Rose } }, { value: 30, itemStyle: { color: vColors.Primary } }, { value: 55, itemStyle: { color: vColors.Mustard } }, { value: 20, itemStyle: { color: vColors.Primary } }, { value: 15, itemStyle: { color: vColors.Primary } }],
-    animationDuration: 1800, animationEasing: 'elasticOut', animationDelay: (idx) => idx * 100
-  }]
-})
+const defaultBarFreqOption = (data) => {
+  const chartDataPoints = (data.alerts_counts || []).map((val, idx) => {
+    const colors = [vColors.Primary, vColors.Rose, vColors.Mustard]
+    return { value: val, itemStyle: { color: colors[idx % colors.length] } }
+  })
+  return {
+    color: [vColors.Primary],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true },
+    grid: { left: '2%', right: '2%', bottom: '5%', top: '10%', containLabel: true },
+    xAxis: { type: 'category', data: data.alerts_machines || [], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontWeight: 'bold' } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor, type: 'dotted' } }, axisLabel: { color: textColor } },
+    series: [{
+      name: 'Alertas', type: 'bar', barWidth: '30%', itemStyle: { borderRadius: [6, 6, 0, 0] },
+      data: chartDataPoints,
+      animationDuration: 1800, animationEasing: 'elasticOut', animationDelay: (idx) => idx * 100
+    }]
+  }
+}
 
 </script>
 

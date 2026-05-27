@@ -1,29 +1,30 @@
-from work_orders.models import WorkOrderStatus, ErrorType
-import sys
+"""
+Seed das colunas Kanban de Ordens de Serviço.
+Execute:  python seed_kanban.py
+"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
+django.setup()
 
-def seed():
-    statuses = [
-        {'name': 'A Fazer', 'order_index': 1, 'is_closed': False},
-        {'name': 'Em Andamento', 'order_index': 2, 'is_closed': False},
-        {'name': 'Concluída', 'order_index': 3, 'is_closed': True},
-        {'name': 'Cancelada', 'order_index': 4, 'is_closed': True},
-    ]
+from work_orders.models import WorkOrderStatus
 
-    for s in statuses:
-        WorkOrderStatus.objects.get_or_create(name=s['name'], defaults=s)
+STATUSES = [
+    {"name": "To Do",       "order_index": 0, "is_closed": False},
+    {"name": "In Progress", "order_index": 1, "is_closed": False},
+    {"name": "Waiting",     "order_index": 2, "is_closed": False},
+    {"name": "Done",        "order_index": 3, "is_closed": True},
+]
 
-    errors = [
-        {'name': 'Erro de Sensor', 'description': 'Falhas na captação ou envio de telemetria.'},
-        {'name': 'Falha na Máquina', 'description': 'Problema físico e mecânico do equipamento.'},
-        {'name': 'Manutenção de Rotina', 'description': 'Inspeção e lubrificação periódica padrão.'},
-        {'name': 'Calibração', 'description': 'Ajuste de medidas ou sensores desviados.'},
-        {'name': 'Correção Geral', 'description': 'Outros problemas imprevistos.'},
-    ]
+created = 0
+for s in STATUSES:
+    obj, was_created = WorkOrderStatus.objects.get_or_create(
+        name=s["name"],
+        defaults={"order_index": s["order_index"], "is_closed": s["is_closed"]}
+    )
+    if was_created:
+        print(f"  ✔ Criado: {obj.name}")
+        created += 1
+    else:
+        print(f"  — Já existe: {obj.name}")
 
-    for e in errors:
-        ErrorType.objects.get_or_create(name=e['name'], defaults=e)
-
-    print('Seed finalizado.')
-
-if __name__ == '__main__':
-    seed()
+print(f"\nSeed concluído. {created} status(es) criado(s).")

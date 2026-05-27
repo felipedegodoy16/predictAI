@@ -333,7 +333,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Plus, Filter, Edit3, Trash2, X, Save, Activity, CalendarDays, Settings, Thermometer } from 'lucide-vue-next'
+import { Plus, Filter, Edit3, Trash2, X, Save, Activity, CalendarDays, Settings } from 'lucide-vue-next'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { getWorkOrders, createWorkOrder, updateWorkOrder, deleteWorkOrder, getStatuses } from '@/services/work_orders'

@@ -8,11 +8,11 @@ from .serializers import (
     MachineSerializer,
     MachineStatusUpdateSerializer,
 )
-from .permissions import IsAdminOrTechnicianOrReadOnly, IsAdminForDelete
+from .permissions import IsEditorOrReadOnly, IsAdminManagerForDelete
 
 
 class MachineListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
+    permission_classes = [IsAuthenticated, IsEditorOrReadOnly]
     search_fields = ['production_line', 'manufacturer', 'model', 'serial_number']
     ordering_fields = ['manufacturer', 'installation_date']
     ordering = ['manufacturer']
@@ -52,7 +52,7 @@ class MachineDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Machine.objects.prefetch_related(
         'statuses', 'sensors', 'sensors__readings'
     ).all()
-    permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly, IsAdminForDelete]
+    permission_classes = [IsAuthenticated, IsEditorOrReadOnly, IsAdminManagerForDelete]
     serializer_class = MachineSerializer
 
     def perform_update(self, serializer):
@@ -83,7 +83,7 @@ class MachineDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class MachineStatusUpdateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrTechnicianOrReadOnly]
+    permission_classes = [IsAuthenticated, IsEditorOrReadOnly]
 
     def post(self, request, pk):
         try:

@@ -30,20 +30,35 @@
           <span class="font-medium">Relatórios</span>
         </router-link>
         <!-- Users -->
-        <router-link v-if="authStore.userRole === 'ADMIN'" to="/users" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+        <router-link 
+          v-if="authStore.isAdminOrManager" 
+          to="/users" 
+          exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" 
+          class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]"
+        >
           <Users class="w-5 h-5" />
           <span class="font-medium">Usuários</span>
         </router-link>
         <!-- Logs -->
-        <router-link v-if="authStore.userRole === 'ADMIN'" to="/logs" exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]">
+        <router-link 
+          v-if="authStore.isAdminOrManager" 
+          to="/logs" 
+          exact-active-class="bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-charcoal)] dark:text-[var(--text-main)] border-r-4 border-[var(--color-vintage-mint)] shadow-inner" 
+          class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[var(--bg-app)] transition-colors text-[var(--text-muted)]"
+        >
           <ShieldAlert class="w-5 h-5" />
           <span class="font-medium">Logs de Auditoria</span>
         </router-link>
       </nav>
       <div class="p-4 border-t border-[var(--border-color)]">
-        <div class="mb-4">
-          <p class="text-sm font-medium">Usuário Logado</p>
-          <p class="text-xs text-[var(--text-muted)] truncate" :title="authStore.user?.email">{{ authStore.user?.email || 'Desconhecido' }}</p>
+        <div class="mb-3 flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-[var(--color-vintage-mint)]/20 flex items-center justify-center text-[var(--color-vintage-mint)] font-bold uppercase text-sm shrink-0">
+            {{ authStore.user?.name?.substring(0, 2) || 'U?' }}
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-bold text-[var(--text-main)] truncate">{{ authStore.user?.name || 'Usuário' }}</p>
+            <p class="text-xs text-[var(--text-muted)] truncate capitalize">{{ authStore.user?.profile || '—' }}</p>
+          </div>
         </div>
         <button @click="handleLogout" class="text-sm text-[var(--color-vintage-rose)] hover:underline flex items-center gap-1 font-medium">
           <LogOut class="w-4 h-4" />
@@ -77,8 +92,13 @@
             <transition name="pop">
               <div v-if="showNotifications" class="absolute right-0 top-12 mt-1 w-80 sm:w-96 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
                 <div class="p-4 border-b border-[var(--border-color)] bg-[var(--bg-app)]/50 flex justify-between items-center">
-                  <h3 class="font-bold tracking-tight">Notificações Recentes</h3>
-                  <span class="text-xs font-bold text-[var(--color-vintage-mint)] bg-[var(--color-vintage-mint)]/10 px-2 py-0.5 rounded-full">{{ unreadCount }} Novas</span>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-bold tracking-tight">Notificações</h3>
+                    <span v-if="unreadCount > 0" class="text-xs font-bold text-[var(--color-vintage-mint)] bg-[var(--color-vintage-mint)]/10 px-2 py-0.5 rounded-full">{{ unreadCount }} Novas</span>
+                  </div>
+                  <button v-if="hasUnread" @click.stop="handleMarkAllAsRead" class="text-xs text-[var(--color-vintage-mint)] hover:underline font-bold transition-all">
+                    Lidas <Check class="w-3 h-3 inline" />
+                  </button>
                 </div>
                 
                 <!-- Scrollable Body -->
@@ -149,7 +169,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Activity, LayoutDashboard, Factory, Bell, FileText, Users, Moon, Sun, LogOut, AlertTriangle, AlertCircle, Info, Check, ShieldAlert, ClipboardList } from 'lucide-vue-next'
-import { getNotifications, markAsRead } from '@/services/notifications'
+import { getNotifications, markAsRead, markAllAsRead } from '@/services/notifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -193,6 +213,15 @@ const handleMarkAsRead = async (noty) => {
     noty.is_read = true
   } catch (err) {
     console.error('Failed to mark as read', err)
+  }
+}
+
+const handleMarkAllAsRead = async () => {
+  try {
+    await markAllAsRead()
+    notifications.value.forEach(n => n.is_read = true)
+  } catch (err) {
+    console.error('Failed to mark all as read', err)
   }
 }
 

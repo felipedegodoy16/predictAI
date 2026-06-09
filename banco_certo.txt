@@ -1,0 +1,206 @@
+# Estrutura do Banco de Dados - predictAI (Extraída diretamente do PostgreSQL)
+
+### Tabela: alerts_alert
+Colunas:
+- id (bigint)
+- alert_type (character varying)
+- detected_value (numeric)
+- limit_value (numeric)
+- criticality (character varying)
+- viewed (boolean)
+- timestamp (timestamp with time zone)
+- machine_id (bigint)
+- reading_id (bigint)
+
+### Tabela: audit_auditlog
+Colunas:
+- id (bigint)
+- table_name (character varying)
+- record_id (integer)
+- field_name (character varying)
+- old_value (character varying)
+- new_value (character varying)
+- timestamp (timestamp with time zone)
+- user_id (bigint)
+
+### Tabela: auth_group
+Colunas:
+- id (integer)
+- name (character varying)
+
+### Tabela: auth_group_permissions
+Colunas:
+- id (bigint)
+- group_id (integer)
+- permission_id (integer)
+
+### Tabela: auth_permission
+Colunas:
+- id (integer)
+- name (character varying)
+- content_type_id (integer)
+- codename (character varying)
+
+### Tabela: django_admin_log
+Colunas:
+- id (integer)
+- action_time (timestamp with time zone)
+- object_id (text)
+- object_repr (character varying)
+- action_flag (smallint)
+- change_message (text)
+- content_type_id (integer)
+- user_id (bigint)
+
+### Tabela: django_content_type
+Colunas:
+- id (integer)
+- app_label (character varying)
+- model (character varying)
+
+### Tabela: django_migrations
+Colunas:
+- id (bigint)
+- app (character varying)
+- name (character varying)
+- applied (timestamp with time zone)
+
+### Tabela: django_session
+Colunas:
+- session_key (character varying)
+- session_data (text)
+- expire_date (timestamp with time zone)
+
+### Tabela: machines_machine
+Colunas:
+- id (bigint)
+- production_line (character varying)
+- manufacturer (character varying)
+- model (character varying)
+- serial_number (character varying)
+- installation_date (date)
+- preventive_maintenance_interval (integer)
+- telemetry_interval (integer)
+
+### Tabela: machines_machinestatus
+Colunas:
+- id (bigint)
+- status (character varying)
+- reason (character varying)
+- timestamp (timestamp with time zone)
+- machine_id (bigint)
+
+### Tabela: notifications_notification
+Colunas:
+- id (bigint)
+- title (character varying)
+- message (text)
+- notification_type (character varying)
+- is_read (boolean)
+- created_at (timestamp with time zone)
+- user_id (bigint)
+
+### Tabela: sensors_sensor
+Colunas:
+- id (bigint)
+- sensor_type (character varying)
+- unit (character varying)
+- description (character varying)
+- limit_temp (numeric)
+- is_active (boolean)
+- machine_id (bigint)
+- min_limit (numeric)
+
+### Tabela: sensors_sensorreading
+Colunas:
+- id (bigint)
+- value (numeric)
+- timestamp (timestamp with time zone)
+- machine_id (bigint)
+- sensor_id (bigint)
+
+### Tabela: token_blacklist_blacklistedtoken
+Colunas:
+- id (bigint)
+- blacklisted_at (timestamp with time zone)
+- token_id (bigint)
+
+### Tabela: token_blacklist_outstandingtoken
+Colunas:
+- id (bigint)
+- token (text)
+- created_at (timestamp with time zone)
+- expires_at (timestamp with time zone)
+- user_id (bigint)
+- jti (character varying)
+
+### Tabela: users_passwordresetcode
+Colunas:
+- id (bigint)
+- code (character varying)
+- created_at (timestamp with time zone)
+- user_id (bigint)
+
+### Tabela: users_user
+Colunas:
+- id (bigint)
+- password (character varying)
+- last_login (timestamp with time zone)
+- is_superuser (boolean)
+- first_name (character varying)
+- last_name (character varying)
+- is_staff (boolean)
+- date_joined (timestamp with time zone)
+- username (character varying)
+- name (character varying)
+- email (character varying)
+- profile (character varying)
+- is_active (boolean)
+- created_at (timestamp with time zone)
+
+### Tabela: users_user_groups
+Colunas:
+- id (bigint)
+- user_id (bigint)
+- group_id (integer)
+
+### Tabela: users_user_user_permissions
+Colunas:
+- id (bigint)
+- user_id (bigint)
+- permission_id (integer)
+
+### Tabela: work_orders_maintenance
+Colunas:
+- id (bigint)
+- description (text)
+- solution (text)
+- next_maintenance_deadline (integer)
+- performed_date (timestamp with time zone)
+- machine_id (bigint)
+- work_order_id (bigint)
+
+### Tabela: work_orders_workorder
+Colunas:
+- id (bigint)
+- order_type (character varying)
+- production_line (character varying)
+- status_id (bigint)
+- priority (character varying)
+- observation (text)
+- opening_date (timestamp with time zone)
+- scheduled_date (timestamp with time zone)
+- completion_date (timestamp with time zone)
+- alert_id (bigint)
+- machine_id (bigint)
+- opened_by_id (bigint)
+- previous_maintenance_id (bigint)
+- assigned_to_id (bigint)
+
+### Tabela: work_orders_workorderstatus
+Colunas:
+- id (bigint)
+- name (character varying)
+- order_index (integer)
+- is_closed (boolean)
+

@@ -44,43 +44,99 @@ def _detect_criticality(sensor, value, is_low=False):
 
 def _auto_create_work_order(machine, alert):
     """Cria uma WorkOrder preditiva automaticamente para alertas críticos."""
-    from work_orders.models import WorkOrder, WorkOrderStatus
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Pega os status que indicam que a OS está aberta
-    open_statuses = WorkOrderStatus.objects.filter(is_closed=False)
-    existing_wo = WorkOrder.objects.filter(machine=machine, status__in=open_statuses).first()
+    try:
+        from work_orders.models import WorkOrder, WorkOrderStatus
 
-    msg = (
-        f'OS gerada/atualizada por alerta crítico.\n'
-        f'Sensor: {alert.reading.sensor.sensor_type} '
-        f'| Valor detectado: {alert.detected_value} {alert.reading.sensor.unit} '
-        f'| Limite: {alert.limit_value} {alert.reading.sensor.unit}'
-    )
-
-    if existing_wo:
-        # Anexa na OS existente
-        existing_wo.observation = (existing_wo.observation or "") + "\n\n[Novo Alerta Anexado]\n" + msg
-        existing_wo.priority = WorkOrder.Priority.CRITICA
-        existing_wo.save()
-        _broadcast_os_notification(existing_wo, is_update=True)
-    else:
-        # Cria uma nova OS
+        # Pega o primeiro status "aberto" disponível
         todo_status = WorkOrderStatus.objects.order_by('order_index').first()
         if not todo_status:
-            return  # Sem status cadastrado, não cria OS
+            logger.warning("Nenhum WorkOrderStatus cadastrado - OS não foi criada.")
+            return
 
-        production_line = machine.production_line or 'Auto-gerada'
+        # Pega os status que indicam que a OS está aberta
+        open_statuses = WorkOrderStatus.objects.filter(is_closed=False)
+        existing_wo = WorkOrder.objects.filter(machine=machine, status__in=open_statuses).first()
 
-        wo = WorkOrder.objects.create(
-            machine=machine,
-            alert=alert,
-            order_type=WorkOrder.OrderType.PREDITIVA,
-            production_line=production_line,
-            priority=WorkOrder.Priority.CRITICA,
-            status=todo_status,
-            observation=msg,
+        sensor_label = alert.reading.sensor.sensor_type if alert.reading and alert.reading.sensor else 'desconhecido'
+        detected = alert.detected_value
+        limit = alert.limit_value
+        unit = alert.reading.sensor.unit if alert.reading and alert.reading.sensor else ''
+
+        msg = (
+            f'OS gerada automaticamente por alerta crítico.\n'
+            f'Sensor: {sensor_label} '
+            f'| Valor detectado: {detected} {unit} '
+            f'| Limite: {limit} {unit}'
         )
-        _broadcast_os_notification(wo, is_update=False)
+
+        # production_line: usa da máquina ou fallback genérico
+        production_line = (machine.production_line or '').strip() or 'Linha Automática'
+
+        if existing_wo:
+            existing_wo.priority = WorkOrder.Priority.CRITICA
+            existing_wo.save(update_fields=['priority'])
+            logger.info(f"OS-{existing_wo.id} atualizada com novo alerta crítico da máquina {machine.serial_number}.")
+            _broadcast_os_notification(existing_wo, is_update=True)
+        else:
+            import os
+            import urllib.request
+            import json
+            api_key = os.environ.get('GROQ_API_KEY', '')
+            ai_text = ""
+            if api_key:
+                prompt = (
+                    f"Crie uma descrição técnica, profissional e 'bem legal' para uma Ordem de Serviço "
+                    f"do tipo '{WorkOrder.OrderType.PREDITIVA}'. A máquina envolvida é {machine.manufacturer} {machine.model} "
+                    f"(S/N: {machine.serial_number}). "
+                    f"O sistema detectou um alerta crítico: Sensor {sensor_label} registrou {detected} {unit} (Limite: {limit} {unit}). "
+                    "Gere apenas o texto da descrição a ser colocado na OS, sem aspas, focado na resolução e na clareza."
+                )
+                try:
+                    req = urllib.request.Request(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        data=json.dumps({
+                            "model": "llama3-8b-8192",
+                            "messages": [
+                                {"role": "system", "content": "Você é um assistente técnico especialista em manutenção industrial preditiva e corretiva."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": 0.7,
+                            "max_tokens": 512
+                        }).encode('utf-8')
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        data = json.loads(response.read().decode('utf-8'))
+                        ai_text = data["choices"][0]["message"]["content"].strip()
+                except Exception as e:
+                    logger.error(f"Erro na API do Groq ao criar OS automatica: {e}")
+            
+            if ai_text:
+                final_obs = f"{msg}\n\n--- Análise IA (Groq) ---\n{ai_text}"
+            else:
+                final_obs = msg
+
+            wo = WorkOrder.objects.create(
+                machine=machine,
+                alert=alert,
+                order_type=WorkOrder.OrderType.PREDITIVA,
+                production_line=production_line,
+                priority=WorkOrder.Priority.CRITICA,
+                status=todo_status,
+                observation=final_obs,
+            )
+            logger.info(f"OS-{wo.id} criada automaticamente para a máquina {machine.serial_number}.")
+            _broadcast_os_notification(wo, is_update=False)
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Erro ao criar OS automática para máquina {machine.serial_number}: {e}\n{traceback.format_exc()}")
 
 def _broadcast_os_notification(work_order, is_update=False):
     """Cria notificações de atualização ou criação de OS."""
@@ -230,20 +286,43 @@ class SensorReadingBulkCreateView(APIView):
     permission_classes = [AllowAny]  # simulador não autentica
 
     def post(self, request):
+        from django.utils import timezone
+        from datetime import timedelta
+
         serializer = SensorReadingBulkCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         readings_data = serializer.validated_data['readings']
         created_readings = []
+        now = timezone.now()
 
         for item in readings_data:
             sensor = item['sensor']
+            machine = sensor.machine
+            interval_mins = machine.telemetry_interval or 0
+
+            if interval_mins > 0:
+                latest = SensorReading.objects.filter(sensor=sensor).order_by('-timestamp').first()
+                if latest and (now - latest.timestamp) < timedelta(minutes=interval_mins):
+                    continue
+
             reading = SensorReading(
-                machine=sensor.machine,
+                machine=machine,
                 sensor=sensor,
                 value=item['value'],
             )
             created_readings.append(reading)
+
+        if not created_readings:
+            return Response(
+                {
+                    'created': 0,
+                    'alerts_generated': 0,
+                    'work_orders_created': 0,
+                    'message': 'All readings ignored due to telemetry interval constraints.'
+                },
+                status=status.HTTP_200_OK,
+            )
 
         created = SensorReading.objects.bulk_create(created_readings)
 

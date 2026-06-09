@@ -8,9 +8,22 @@ const api = axios.create({
   }
 })
 
+// Global Loading State Manager
+let activeRequests = 0
+
+const updateLoadingState = () => {
+  window.dispatchEvent(new CustomEvent('global-loading', { detail: activeRequests > 0 }))
+}
+
 // Request interceptor to attach JWT token
 api.interceptors.request.use(
   (config) => {
+    // Only track non-silent requests
+    const isSilent = config.silent || (config.headers && config.headers['X-Silent'])
+    if (!isSilent) {
+      activeRequests++
+      updateLoadingState()
+    }
     const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -22,9 +35,22 @@ api.interceptors.request.use(
 
 // Response interceptor to handle token expiration (401)
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const isSilent = response.config.silent || (response.config.headers && response.config.headers['X-Silent'])
+    if (!isSilent) {
+      activeRequests = Math.max(0, activeRequests - 1)
+      updateLoadingState()
+    }
+    return response
+  },
   async (error) => {
-    const originalRequest = error.config
+    const originalRequest = error.config || {}
+    
+    const isSilent = originalRequest.silent || (originalRequest.headers && originalRequest.headers['X-Silent'])
+    if (!isSilent) {
+      activeRequests = Math.max(0, activeRequests - 1)
+      updateLoadingState()
+    }
     
     // Se o erro foi 401 e não tentamos dar refresh na mesma requisição
     if (error.response && error.response.status === 401 && !originalRequest._retry) {

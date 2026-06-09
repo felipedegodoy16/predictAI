@@ -18,15 +18,48 @@
           <Settings2 class="w-5 h-5" />
           Gerenciar Gráficos
         </button>
+      </div>
+    </div>
 
-        <div class="hidden sm:flex vintage-panel px-6 py-2 items-center gap-4">
-          <div class="p-2 bg-[var(--color-vintage-mint)]/20 rounded-lg">
-            <Activity class="w-5 h-5 text-[var(--color-vintage-mint)]" />
-          </div>
-          <div>
-            <p class="text-xs font-bold uppercase text-[var(--text-muted)]">Saúde Global</p>
-            <p class="text-xl font-bold">92.4%</p>
-          </div>
+    <!-- METRICS CARDS -->
+    <div v-if="dashboardMetrics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="vintage-panel p-4 flex items-center gap-4">
+        <div class="p-3 bg-[var(--color-vintage-mint)]/20 rounded-xl">
+          <Activity class="w-6 h-6 text-[var(--color-vintage-mint)]" />
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Saúde Global</p>
+          <p class="text-2xl font-black">{{ dashboardMetrics.machines.health_percentage }}%</p>
+        </div>
+      </div>
+      <div class="vintage-panel p-4 flex items-center gap-4">
+        <div class="p-3 bg-[var(--color-vintage-mint)]/10 border border-[var(--color-vintage-mint)]/30 rounded-xl">
+          <Cpu class="w-6 h-6 text-[var(--color-vintage-mint)]" />
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Máquinas Ativas</p>
+          <p class="text-2xl font-black">{{ dashboardMetrics.machines.active }} <span class="text-xs text-[var(--text-muted)] font-bold">/ {{ dashboardMetrics.machines.total }}</span></p>
+        </div>
+      </div>
+      <div class="vintage-panel p-4 flex items-center gap-4">
+        <div class="p-3 bg-[var(--color-vintage-mustard)]/10 border border-[var(--color-vintage-mustard)]/30 rounded-xl">
+          <Wrench class="w-6 h-6 text-[var(--color-vintage-mustard)]" />
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Em Manutenção</p>
+          <p class="text-2xl font-black text-[var(--color-vintage-mustard)]">{{ dashboardMetrics.machines.maintenance }}</p>
+        </div>
+      </div>
+      <div class="vintage-panel p-4 flex flex-col justify-center">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">OS Abertas</p>
+        <div class="flex gap-2 flex-wrap">
+          <span v-if="!dashboardMetrics.open_os_counts || dashboardMetrics.open_os_counts.length === 0" class="text-xs text-[var(--text-muted)] font-bold">Nenhuma</span>
+          <span 
+            v-for="os in dashboardMetrics.open_os_counts" :key="os.status__name"
+            class="px-2 py-0.5 text-[10px] font-bold uppercase rounded border bg-[var(--bg-app)] border-[var(--border-color)]"
+          >
+            {{ os.status__name }}: <span class="text-[var(--text-main)]">{{ os.count }}</span>
+          </span>
         </div>
       </div>
     </div>
@@ -54,7 +87,7 @@
         <!-- Background Blur Decorators -->
         <div class="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
           <div 
-            v-if="widget.type === 'line' || widget.type === 'line_temp' || widget.type === 'line_compare'"
+            v-if="widget.type === 'line' || widget.type === 'line_temp' || widget.type === 'line_compare' || widget.type === 'line_os_compare'"
             class="absolute -top-24 -right-24 w-64 h-64 bg-[var(--color-vintage-mustard)] opacity-5 rounded-full blur-3xl animate-pulse" style="animation-duration: 8s;"
           ></div>
           <div 
@@ -76,8 +109,8 @@
             <p class="text-sm font-medium text-[var(--text-muted)]">{{ widget.subtitle || 'Métricas operacionais' }}</p>
           </div>
           
-          <!-- Time Range Selector (only for line_temp chart) -->
-          <div v-if="widget.type === 'line_temp'" class="flex items-center gap-1 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl p-1">
+          <!-- Time Range Selector (for line_os_compare, bar_os_sensors and radar_os_types) -->
+          <div v-if="['line_temp','line_os_compare','bar_os_sensors','radar_os_types'].includes(widget.type)" class="flex items-center gap-1 bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl p-1">
             <button
               v-for="opt in RANGE_OPTIONS"
               :key="opt.days"
@@ -306,7 +339,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Activity, Settings2, EyeOff, Trash2, Edit3, PieChart as LucidePieChart, X, ShieldCheck, Sparkles, Check, PlusCircle, LayoutTemplate } from 'lucide-vue-next'
+import { Activity, Settings2, EyeOff, Trash2, Edit3, PieChart as LucidePieChart, X, ShieldCheck, Sparkles, Check, PlusCircle, LayoutTemplate, Cpu, Wrench } from 'lucide-vue-next'
 import api from '@/services/api'
 
 import { use } from 'echarts/core'
@@ -344,9 +377,11 @@ const showWidgetManager = ref(false)
 const editingWidgetId = ref(null)
 
 const DEFAULT_WIDGETS = [
-  { id: 'def_1', type: 'line_temp', isDefault: true, isVisible: true, title: 'Comparativo Térmico Crítico', subtitle: 'As 2 máquinas com mais alertas', span: 2 },
-  { id: 'def_2', type: 'radar_risk', isDefault: true, isVisible: true, title: 'Risco por Setor Global', subtitle: 'Matriz Paramétrica', span: 1 },
-  { id: 'def_3', type: 'bar_freq', isDefault: true, isVisible: true, title: 'Frequência de Anomalias Reais', subtitle: 'Alarmes disparados por componente mecânico (Trimestre)', span: 3 }
+  // --- Linha 1 ---
+  { id: 'def_8', type: 'radar_os_types', isDefault: true, isVisible: true, title: 'Tipos de OS Abertas', subtitle: 'Distribuição por categoria de ocorrência', span: 1 },
+  { id: 'def_9', type: 'bar_os_sensors', isDefault: true, isVisible: true, title: 'OS por Sensor', subtitle: 'Alertas de sensor que geraram ordens de serviço', span: 2 },
+  // --- Linha 2 ---
+  { id: 'def_7', type: 'bar_os_lines', isDefault: true, isVisible: true, title: 'Problemas por Linha', subtitle: 'Concentração de ocorrências por setor/linha', span: 3 }
 ]
 
 const widgets = ref([])
@@ -365,6 +400,20 @@ const fetchChartData = (days) => {
   }).catch(err => console.error('Failed to load chart data', err))
 }
 
+const dashboardMetrics = ref(null)
+const fetchDashboardMetrics = () => {
+  api.get('/analytics/dashboard/').then(res => {
+    dashboardMetrics.value = res.data
+  }).catch(err => console.error('Failed to load dashboard metrics', err))
+}
+
+const sensorProblems = ref([])
+const fetchSensorProblems = () => {
+  api.get('/analytics/sensor-problems/').then(res => {
+    sensorProblems.value = res.data
+  }).catch(err => console.error('Failed to load sensor problems', err))
+}
+
 const setChartRange = (days) => {
   chartRangeDays.value = days
   fetchChartData(days)
@@ -376,13 +425,37 @@ const visibleWidgets = computed(() => {
 
 onMounted(() => {
   fetchChartData(chartRangeDays.value)
+  fetchDashboardMetrics()
+  fetchSensorProblems()
 
   const stored = localStorage.getItem('predictai_widgets')
   if (stored) {
     try {
       widgets.value = JSON.parse(stored)
-      const hasDefaults = widgets.value.some(w => w.isDefault)
-      if(!hasDefaults) widgets.value = [...DEFAULT_WIDGETS, ...widgets.value]
+      // Clean up old defaults and ensure only the 3 new ones exist
+      const defaultIds = DEFAULT_WIDGETS.map(d => d.id)
+      widgets.value = widgets.value.filter(w => !w.isDefault || defaultIds.includes(w.id))
+      
+      // Add missing defaults and sync span/type/subtitle of existing ones
+      DEFAULT_WIDGETS.forEach(dw => {
+        const existing = widgets.value.find(w => w.id === dw.id)
+        if (!existing) {
+          widgets.value.push({ ...dw })
+        } else {
+          // Always sync layout-critical properties from the default definition
+          existing.span = dw.span
+          existing.type = dw.type
+          existing.subtitle = dw.subtitle
+          existing.title = dw.title
+        }
+      })
+      
+      // Re-sort: defaults first (in defined order), then custom widgets
+      const customWidgets = widgets.value.filter(w => !w.isDefault)
+      widgets.value = [
+        ...DEFAULT_WIDGETS.map(dw => widgets.value.find(w => w.id === dw.id)).filter(Boolean),
+        ...customWidgets
+      ]
     } catch (e) {
       widgets.value = JSON.parse(JSON.stringify(DEFAULT_WIDGETS))
     }
@@ -501,7 +574,11 @@ const getChartOption = (widget) => {
 
   if (widget.type === 'line_temp') return defaultLineTempOption(chartData.value)
   if (widget.type === 'radar_risk') return defaultRadarRiskOption()
-  if (widget.type === 'bar_freq') return defaultBarFreqOption(chartData.value)
+  if (widget.type === 'bar_freq') return defaultBarFreqOption(sensorProblems.value)
+  if (widget.type === 'bar_os_sensors') return defaultBarOsSensorsOption(chartData.value)
+  if (widget.type === 'line_os_compare') return defaultLineOsCompareOption(chartData.value)
+  if (widget.type === 'bar_os_lines') return defaultPieOsLinesOption(chartData.value)
+  if (widget.type === 'radar_os_types') return defaultRadarOsTypesOption(chartData.value)
 
   // Grab color. If colorTheme isn't in availableColors, it's a Custom hex color string!
   const colorHex = availableColors[widget.colorTheme] || widget.colorTheme || vColors.Mint
@@ -665,17 +742,56 @@ const getChartOption = (widget) => {
 }
 
 const defaultLineTempOption = (data) => ({
-  color: [vColors.Rose, vColors.Mustard],
-  tooltip: { trigger: 'axis', appendToBody: true, backgroundColor: 'rgba(253, 251, 247, 0.95)', borderColor: '#e2dac9', textStyle: { color: '#2A2626' } },
-  legend: { data: [data.legend_1 || 'Máquina 1', data.legend_2 || 'Máquina 2'], textStyle: { color: textColor }, bottom: 5 },
+  color: ['#00e5ff', '#ff3d00'],
+  tooltip: { 
+    trigger: 'axis', 
+    appendToBody: true, 
+    backgroundColor: 'rgba(20, 25, 30, 0.85)', 
+    borderColor: '#333', 
+    textStyle: { color: '#fff' },
+    axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
+  },
+  legend: { data: [data.legend_1 || 'Máquina 1', data.legend_2 || 'Máquina 2'], textStyle: { color: textColor }, bottom: 0 },
   grid: { left: '3%', right: '5%', bottom: '15%', top: '12%', containLabel: true },
   xAxis: { type: 'category', boundaryGap: false, data: data.dates || [], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
   yAxis: [
     { type: 'value', name: 'Temp (°C)', splitLine: { lineStyle: { color: gridColor, type: 'dashed' } }, axisLabel: { color: textColor }, nameTextStyle: { color: textColor } },
   ],
   series: [
-    { name: data.legend_1 || 'Máquina 1', type: 'line', smooth: true, lineStyle: { width: 4 }, showSymbol: false, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(198, 159, 155, 0.5)' }, { offset: 1, color: 'rgba(198, 159, 155, 0.0)' }] } }, data: data.series_1_data || data.temp_series || [], animationDuration: 2000, animationEasing: 'cubicOut' },
-    { name: data.legend_2 || 'Máquina 2', type: 'line', smooth: true, lineStyle: { width: 3, type: 'dashed' }, showSymbol: false, itemStyle: { color: vColors.Mustard }, data: data.series_2_data || data.vib_series || [], animationDuration: 2500, animationEasing: 'cubicOut' }
+    { 
+      name: data.legend_1 || 'Máquina 1', 
+      type: 'line', 
+      smooth: true, 
+      symbol: 'circle',
+      symbolSize: 8,
+      showSymbol: false,
+      lineStyle: { width: 5, color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{offset: 0, color: '#00e5ff'}, {offset: 1, color: '#0070ff'}] }, shadowColor: 'rgba(0, 229, 255, 0.5)', shadowBlur: 10, shadowOffsetY: 5 }, 
+      areaStyle: { 
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(0, 229, 255, 0.6)' }, { offset: 1, color: 'rgba(0, 229, 255, 0.05)' }] } 
+      }, 
+      itemStyle: { color: '#00e5ff', borderColor: '#fff', borderWidth: 2 },
+      markPoint: { data: [{ type: 'max', name: 'Max' }], itemStyle: { color: '#0070ff' } },
+      data: data.series_1_data || data.temp_series || [], 
+      animationDuration: 2000, 
+      animationEasing: 'cubicOut' 
+    },
+    { 
+      name: data.legend_2 || 'Máquina 2', 
+      type: 'line', 
+      smooth: true, 
+      symbol: 'circle',
+      symbolSize: 8,
+      showSymbol: false,
+      lineStyle: { width: 4, type: 'solid', color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{offset: 0, color: '#ff3d00'}, {offset: 1, color: '#ff9100'}] }, shadowColor: 'rgba(255, 61, 0, 0.5)', shadowBlur: 10, shadowOffsetY: 5 }, 
+      areaStyle: { 
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255, 61, 0, 0.4)' }, { offset: 1, color: 'rgba(255, 61, 0, 0.05)' }] } 
+      }, 
+      itemStyle: { color: '#ff3d00', borderColor: '#fff', borderWidth: 2 }, 
+      markPoint: { data: [{ type: 'max', name: 'Max' }], itemStyle: { color: '#ff9100' } },
+      data: data.series_2_data || data.vib_series || [], 
+      animationDuration: 2500, 
+      animationEasing: 'cubicOut' 
+    }
   ]
 })
 
@@ -700,21 +816,283 @@ const defaultRadarRiskOption = () => ({
   }]
 })
 
-const defaultBarFreqOption = (data) => {
-  const chartDataPoints = (data.alerts_counts || []).map((val, idx) => {
+const defaultBarFreqOption = (problems) => {
+  const chartDataPoints = (problems || []).map((p, idx) => {
     const colors = [vColors.Primary, vColors.Rose, vColors.Mustard]
-    return { value: val, itemStyle: { color: colors[idx % colors.length] } }
+    return { value: p.count, itemStyle: { color: colors[idx % colors.length] } }
   })
   return {
     color: [vColors.Primary],
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true },
     grid: { left: '2%', right: '2%', bottom: '5%', top: '10%', containLabel: true },
-    xAxis: { type: 'category', data: data.alerts_machines || [], axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontWeight: 'bold' } },
+    xAxis: { type: 'category', data: (problems || []).map(p => p.sensor_type), axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontWeight: 'bold' } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor, type: 'dotted' } }, axisLabel: { color: textColor } },
     series: [{
-      name: 'Alertas', type: 'bar', barWidth: '30%', itemStyle: { borderRadius: [6, 6, 0, 0] },
+      name: 'Problemas (Alertas)', type: 'bar', barWidth: '30%', itemStyle: { borderRadius: [6, 6, 0, 0] },
       data: chartDataPoints,
       animationDuration: 1800, animationEasing: 'elasticOut', animationDelay: (idx) => idx * 100
+    }]
+  }
+}
+
+const defaultBarOsSensorsOption = (data) => {
+  const labels = data.os_sensors_labels || []
+  const counts = data.os_sensors_counts || []
+
+  // Se não tiver dados reais, mostra placeholder
+  if (labels.length === 0) {
+    return {
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: 'Nenhum alerta de sensor no período', fill: textColor, fontSize: 14 } }]
+    }
+  }
+
+  const palette = [vColors.Primary, vColors.Rose, vColors.Mustard, vColors.Mint, '#7c6fa0', '#4a7c8a']
+  const chartDataPoints = counts.map((count, idx) => ({
+    value: count,
+    itemStyle: { color: palette[idx % palette.length], borderRadius: [6, 6, 0, 0] }
+  }))
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      appendToBody: true,
+      backgroundColor: 'rgba(253, 251, 247, 0.95)',
+      textStyle: { color: textColor },
+      formatter: (params) => {
+        const p = params[0]
+        return `<b>${p.name}</b><br/>Alertas: <b>${p.value}</b>`
+      }
+    },
+    grid: { left: '3%', right: '5%', bottom: '8%', top: '10%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, fontWeight: 'bold', interval: 0, rotate: labels.length > 5 ? 15 : 0 }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Qtd. Alertas',
+      nameTextStyle: { color: textColor, fontSize: 10 },
+      splitLine: { lineStyle: { color: gridColor, type: 'dotted' } },
+      axisLabel: { color: textColor }
+    },
+    series: [{
+      name: 'Alertas por Sensor',
+      type: 'bar',
+      barMaxWidth: 60,
+      data: chartDataPoints,
+      animationDuration: 1800,
+      animationEasing: 'elasticOut',
+      animationDelay: (idx) => idx * 80,
+      label: {
+        show: true,
+        position: 'top',
+        color: textColor,
+        fontWeight: 'bold',
+        fontSize: 11
+      }
+    }]
+  }
+}
+
+const defaultLineOsCompareOption = (data) => {
+  const dateStrings = data.date_strings || []
+  const abertas = data.os_abertas_series || []
+  const fechadas = data.os_fechadas_series || []
+
+  const totalAbertas = abertas.reduce((a, b) => a + b, 0)
+  const totalFechadas = fechadas.reduce((a, b) => a + b, 0)
+
+  if (dateStrings.length === 0 || (totalAbertas === 0 && totalFechadas === 0)) {
+    return {
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: 'Nenhuma OS no período selecionado', fill: textColor, fontSize: 14 } }]
+    }
+  }
+
+  // Format dates as dd/mm
+  const formattedDates = dateStrings.map(d => {
+    const [, m, day] = d.split('-')
+    return `${day}/${m}`
+  })
+
+  return {
+    color: [vColors.Rose, vColors.Mint],
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      backgroundColor: 'rgba(253, 251, 247, 0.95)',
+      textStyle: { color: textColor },
+      axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
+    },
+    legend: {
+      data: ['OS Abertas', 'OS Fechadas'],
+      textStyle: { color: textColor },
+      bottom: 0,
+      icon: 'roundRect'
+    },
+    grid: { left: '3%', right: '5%', bottom: '15%', top: '12%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: formattedDates,
+      axisLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, rotate: dateStrings.length > 20 ? 30 : 0 }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+      axisLabel: { color: textColor }
+    },
+    series: [
+      {
+        name: 'OS Abertas',
+        type: 'line',
+        smooth: true,
+        lineStyle: { width: 4, color: vColors.Rose, shadowColor: 'rgba(198,159,155,0.4)', shadowBlur: 8 },
+        showSymbol: false,
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(198,159,155,0.5)' }, { offset: 1, color: 'rgba(198,159,155,0.02)' }] }
+        },
+        data: abertas,
+        animationDuration: 1600
+      },
+      {
+        name: 'OS Fechadas',
+        type: 'line',
+        smooth: true,
+        lineStyle: { width: 4, color: vColors.Mint, shadowColor: 'rgba(144,169,158,0.4)', shadowBlur: 8 },
+        showSymbol: false,
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(144,169,158,0.4)' }, { offset: 1, color: 'rgba(144,169,158,0.02)' }] }
+        },
+        data: fechadas,
+        animationDuration: 2000
+      }
+    ]
+  }
+}
+
+const defaultPieOsLinesOption = (data) => {
+  const lines = data.os_lines_labels || []
+  const counts = data.os_lines_counts || []
+
+  if (lines.length === 0) {
+    return {
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: 'Nenhuma ocorrência registrada no período', fill: textColor, fontSize: 14 } }]
+    }
+  }
+
+  const palette = [vColors.Rose, vColors.Mint, vColors.Mustard, vColors.Primary, '#7c6fa0', '#4a7c8a', '#a0846f']
+  const chartDataPoints = counts.map((count, idx) => ({
+    value: count,
+    itemStyle: { color: palette[idx % palette.length], borderRadius: [6, 6, 0, 0] }
+  }))
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      appendToBody: true,
+      backgroundColor: 'rgba(253, 251, 247, 0.95)',
+      textStyle: { color: textColor },
+      formatter: (params) => {
+        const p = params[0]
+        return `<b>${p.name}</b><br/>Problemas (OS): <b>${p.value}</b>`
+      }
+    },
+    grid: { left: '3%', right: '3%', bottom: '10%', top: '12%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: lines,
+      axisLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, fontWeight: 'bold', interval: 0 }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Qtd. Problemas (OS)',
+      nameTextStyle: { color: textColor, fontSize: 11 },
+      minInterval: 1,
+      splitLine: { lineStyle: { color: gridColor, type: 'dotted' } },
+      axisLabel: { color: textColor }
+    },
+    series: [{
+      name: 'Problemas por Linha',
+      type: 'bar',
+      barMaxWidth: 80,
+      data: chartDataPoints,
+      animationDuration: 1800,
+      animationEasing: 'elasticOut',
+      animationDelay: (idx) => idx * 80,
+      label: {
+        show: true,
+        position: 'top',
+        color: textColor,
+        fontWeight: 'bold',
+        fontSize: 12
+      }
+    }]
+  }
+}
+
+const defaultRadarOsTypesOption = (data) => {
+  const types = data.os_types_labels || []
+  const counts = data.os_types_counts || []
+
+  if (types.length === 0) {
+    return {
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: 'Nenhuma OS no período', fill: textColor, fontSize: 14 } }]
+    }
+  }
+
+  const palette = [vColors.Rose, vColors.Mint, vColors.Mustard, vColors.Primary, '#7c6fa0']
+  const total = counts.reduce((a, b) => a + b, 0)
+
+  const pieData = types.map((label, idx) => ({
+    name: label,
+    value: counts[idx],
+    itemStyle: { color: palette[idx % palette.length] }
+  }))
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      appendToBody: true,
+      backgroundColor: 'rgba(253, 251, 247, 0.95)',
+      textStyle: { color: textColor },
+      formatter: (p) => `<b>${p.name}</b><br/>Quantidade: <b>${p.value}</b><br/>Percentual: <b>${p.percent}%</b>`
+    },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      textStyle: { color: textColor, fontSize: 11 },
+      icon: 'circle'
+    },
+    graphic: [{
+      type: 'text',
+      left: 'center',
+      top: '42%',
+      style: { text: `${total}\nTotal`, fill: textColor, fontSize: 14, fontWeight: 'bold', textAlign: 'center', lineHeight: 22 }
+    }],
+    series: [{
+      name: 'Tipos de OS',
+      type: 'pie',
+      radius: ['48%', '72%'],
+      center: ['50%', '44%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 8, borderColor: 'var(--bg-app)', borderWidth: 3 },
+      label: { show: false },
+      emphasis: {
+        label: { show: true, fontSize: 13, fontWeight: 'bold', color: textColor },
+        scaleSize: 6
+      },
+      data: pieData,
+      animationDuration: 1600,
+      animationType: 'scale'
     }]
   }
 }

@@ -10,7 +10,12 @@ export const useAuthStore = defineStore('auth', {
   
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
-    userRole: (state) => state.user?.system_role || null,
+    userRole: (state) => state.user?.profile || null,
+    isAdmin: (state) => state.user?.profile === 'administrador',
+    isManager: (state) => state.user?.profile === 'gerente',
+    isAdminOrManager: (state) => ['administrador', 'gerente'].includes(state.user?.profile),
+    isTechOrOp: (state) => ['tecnico', 'operador'].includes(state.user?.profile),
+    isViewer: (state) => state.user?.profile === 'visualizador',
   },
   
   actions: {

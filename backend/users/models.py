@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     class Profile(models.TextChoices):
         ADMINISTRADOR = 'administrador', 'Administrador'
+        GERENTE = 'gerente', 'Gerente'
+        TECNICO = 'tecnico', 'Técnico'
         OPERADOR = 'operador', 'Operador'
         VISUALIZADOR = 'visualizador', 'Visualizador'
 

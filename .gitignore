@@ -21,7 +21,7 @@ wheels/
 .installed.cfg
 *.egg
 backend/venv/
-# backend/.env
+backend/.env
 backend/db.sqlite3
 backend/migrate_error.txt
 backend/migrate_out.txt

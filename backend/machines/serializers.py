@@ -38,6 +38,7 @@ class MachineListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'production_line', 'manufacturer', 'model',
             'serial_number', 'installation_date', 'current_status',
+            'telemetry_interval', 'preventive_maintenance_interval',
         ]
 
     def get_current_status(self, obj):
@@ -54,7 +55,8 @@ class MachineSerializer(serializers.ModelSerializer):
         model = Machine
         fields = [
             'id', 'production_line', 'manufacturer', 'model',
-            'serial_number', 'installation_date',
+            'serial_number', 'installation_date', 'telemetry_interval', 
+            'preventive_maintenance_interval',
             'current_status', 'statuses', 'sensors',
         ]
 

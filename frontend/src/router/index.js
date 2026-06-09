@@ -51,13 +51,13 @@ const router = createRouter({
           path: 'users',
           name: 'users',
           component: () => import('../views/UsersView.vue'),
-          meta: { roles: ['ADMIN'] }
+          meta: { roles: ['administrador', 'gerente'] }
         },
         {
           path: 'logs',
           name: 'logs',
           component: () => import('../views/LogsView.vue'),
-          meta: { roles: ['ADMIN'] }
+          meta: { roles: ['administrador', 'gerente'] }
         }
       ]
     }

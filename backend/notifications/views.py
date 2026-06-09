@@ -19,3 +19,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notification.is_read = True
         notification.save()
         return Response({'status': 'notification marked as read'})
+
+    @action(detail=False, methods=['patch'])
+    def mark_all_as_read(self, request):
+        notifications = self.get_queryset().filter(is_read=False)
+        updated_count = notifications.update(is_read=True)
+        return Response({'status': f'{updated_count} notifications marked as read'})

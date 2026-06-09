@@ -1,11 +1,15 @@
 import api from './api'
 
-export const getWorkOrders = () => api.get('work-orders/')
+export const getWorkOrders = (options = {}) => api.get('work-orders/', options)
 
-export const createWorkOrder = (data) => api.post('work-orders/', data)
+export const createWorkOrder = (data, options = {}) => api.post('work-orders/', data, options)
 
-export const updateWorkOrder = (id, data) => api.patch(`work-orders/${id}/`, data)
+export const updateWorkOrder = (id, data, options = {}) => api.patch(`work-orders/${id}/`, data, options)
 
-export const deleteWorkOrder = (id) => api.delete(`work-orders/${id}/`)
+export const moveWorkOrderStatus = (id, newStatusId) =>
+  api.patch(`work-orders/${id}/move_status/`, { status: newStatusId }, { headers: { 'X-Silent': 'true' } })
 
-export const getStatuses = () => api.get('work-orders/status/')
+export const deleteWorkOrder = (id, options = {}) => api.delete(`work-orders/${id}/`, options)
+
+export const getStatuses = (options = {}) => api.get('work-orders/status/', options)
+

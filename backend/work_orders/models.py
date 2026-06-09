@@ -31,10 +31,10 @@ class WorkOrder(models.Model):
     previous_maintenance = models.ForeignKey('Maintenance', on_delete=models.SET_NULL, null=True, blank=True, related_name='next_orders')
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name='work_orders')
     opened_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='opened_orders')
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders')
     
     order_type = models.CharField(max_length=20, choices=OrderType.choices)
-    production_line = models.CharField(max_length=100)
-    temperature = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    production_line = models.CharField(max_length=100, null=True, blank=True, default='Não informada')
     status = models.ForeignKey(
         WorkOrderStatus, on_delete=models.PROTECT, related_name='work_orders', null=True
     )

@@ -10,6 +10,8 @@ from .services import (
     get_failure_prediction,
     get_maintenance_suggestions,
     get_chart_data,
+    get_os_telemetry,
+    get_sensor_problems,
 )
 
 
@@ -29,6 +31,7 @@ class DashboardView(APIView):
         data = get_dashboard_data()
         return Response({
             'machines': data['machines'],
+            'open_os_counts': data['open_os_counts'],
             'alerts': data['alerts'],
             'recent_anomalies': SensorReadingSerializer(data['recent_anomalies'], many=True).data,
             'machines_with_most_alerts': MachineListSerializer(data['machines_with_alerts'], many=True).data,
@@ -63,3 +66,17 @@ class MaintenanceSuggestionsView(APIView):
     def get(self, request):
         suggestions = get_maintenance_suggestions()
         return Response({'suggestions': suggestions}, status=status.HTTP_200_OK)
+
+class OSTelemetryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, os_id):
+        data = get_os_telemetry(os_id)
+        return Response(data, status=status.HTTP_200_OK)
+
+class SensorProblemsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data = get_sensor_problems()
+        return Response(data, status=status.HTTP_200_OK)

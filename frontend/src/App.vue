@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted } from 'vue'
+import LoadingOverlay from '@/components/LoadingOverlay.vue'
 
 onMounted(() => {
   // Check user theme preference
@@ -15,4 +16,5 @@ onMounted(() => {
 <template>
   <router-view />
   <!-- Toasts container will be placed here -->
+  <LoadingOverlay />
 </template>

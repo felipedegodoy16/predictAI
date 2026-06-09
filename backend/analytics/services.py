@@ -13,12 +13,43 @@ def get_dashboard_data():
 
     # Simplified status logic: since status is now an event history, 
     # counting current status correctly requires a subquery or aggregation.
-    # For MVP, just return total machines.
+    from work_orders.models import WorkOrder, WorkOrderStatus
+    open_statuses = WorkOrderStatus.objects.filter(is_closed=False)
+    
+    open_os_counts = list(
+        WorkOrder.objects.filter(status__in=open_statuses)
+        .values('status__name')
+        .annotate(count=Count('id'))
+    )
+
+    total_machines = Machine.objects.count()
+    
+    active_machines = 0
+    maintenance_machines = 0
+    inactive_machines = 0
+
+    machines = Machine.objects.all()
+    for m in machines:
+        latest_status = m.statuses.order_by('-timestamp').first()
+        if latest_status:
+            if latest_status.status == 'ativa':
+                active_machines += 1
+            elif latest_status.status == 'manutencao':
+                maintenance_machines += 1
+            else:
+                inactive_machines += 1
+        else:
+            active_machines += 1
+
+    health_percentage = 0
+    if total_machines > 0:
+        health_percentage = round(((active_machines + inactive_machines) / total_machines) * 100, 1)
+
     machine_summary = {
-        'total': Machine.objects.count(),
-        'active': 0,
-        'maintenance': 0,
-        'inactive': 0,
+        'total': total_machines,
+        'active': active_machines,
+        'maintenance': maintenance_machines,
+        'health_percentage': health_percentage,
     }
 
     alert_summary = {
@@ -43,6 +74,7 @@ def get_dashboard_data():
 
     return {
         'machines': machine_summary,
+        'open_os_counts': open_os_counts,
         'alerts': alert_summary,
         'recent_anomalies': recent_anomalies,
         'machines_with_alerts': machines_with_alerts,
@@ -246,6 +278,90 @@ def get_chart_data(days=14):
         alerts_machines.append(a['machine_name'])
         alerts_counts.append(a['total'])
 
+    from work_orders.models import WorkOrder
+    from alerts.models import Alert as AlertModel
+    
+    # OS per Sensor Type — baseado em alertas por tipo de sensor no período
+    # (não exige que a OS tenha alert linkado diretamente)
+    sensor_type_agg = (
+        AlertModel.objects.filter(timestamp__gte=start_date)
+        .values('reading__sensor__sensor_type')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    os_sensors_labels = []
+    os_sensors_counts = []
+    for agg in sensor_type_agg:
+        stype = agg['reading__sensor__sensor_type'] or 'Desconhecido'
+        os_sensors_labels.append(stype.capitalize())
+        os_sensors_counts.append(agg['total'])
+
+    # Fallback: se não houver alertas com sensores, usa distribuição de OS por tipo
+    if not os_sensors_labels:
+        wo_type_fallback = (
+            WorkOrder.objects.filter(opening_date__gte=start_date)
+            .values('order_type')
+            .annotate(total=Count('id'))
+            .order_by('-total')
+        )
+        for agg in wo_type_fallback:
+            os_sensors_labels.append(agg['order_type'].capitalize())
+            os_sensors_counts.append(agg['total'])
+
+    # OS Abertas vs Fechadas over time
+    days_diff = (timezone.now() - start_date).days
+    date_range = [(start_date + timedelta(days=i)).date() for i in range(max(days_diff + 1, 1))]
+    date_strings = [d.strftime('%Y-%m-%d') for d in date_range]
+    
+    os_opened_agg = (
+        WorkOrder.objects.filter(opening_date__gte=start_date)
+        .annotate(date=TruncDate('opening_date'))
+        .values('date')
+        .annotate(total=Count('id'))
+    )
+    os_closed_agg = (
+        WorkOrder.objects.filter(
+            opening_date__gte=start_date,
+            status__is_closed=True
+        )
+        .annotate(date=TruncDate('opening_date'))
+        .values('date')
+        .annotate(total=Count('id'))
+    )
+    
+    opened_dict = {str(item['date']): item['total'] for item in os_opened_agg if item['date']}
+    closed_dict = {str(item['date']): item['total'] for item in os_closed_agg if item['date']}
+    
+    os_abertas_series = [opened_dict.get(d, 0) for d in date_strings]
+    os_fechadas_series = [closed_dict.get(d, 0) for d in date_strings]
+
+    # OS Types — todos os tipos no período (não apenas os abertos)
+    os_types_agg = (
+        WorkOrder.objects.filter(opening_date__gte=start_date)
+        .values('order_type')
+        .annotate(total=Count('id'))
+    )
+    os_types_labels = []
+    os_types_counts = []
+    for agg in os_types_agg:
+        t = agg['order_type'] or 'desconhecido'
+        os_types_labels.append(t.capitalize())
+        os_types_counts.append(agg['total'])
+
+    # OS Lines — problemas por linha de produção no período
+    os_lines_agg = (
+        WorkOrder.objects.filter(opening_date__gte=start_date)
+        .values('production_line')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    os_lines_labels = []
+    os_lines_counts = []
+    for agg in os_lines_agg:
+        line = agg['production_line'] or 'Não informada'
+        os_lines_labels.append(line.capitalize())
+        os_lines_counts.append(agg['total'])
+
     return {
         "dates": sorted_dates,
         "legend_1": machine1_name,
@@ -258,5 +374,79 @@ def get_chart_data(days=14):
         "vib_series": series2_data,
 
         "alerts_machines": alerts_machines,
-        "alerts_counts": alerts_counts
+        "alerts_counts": alerts_counts,
+        
+        "date_strings": date_strings,
+        "os_sensors_labels": os_sensors_labels,
+        "os_sensors_counts": os_sensors_counts,
+        "os_abertas_series": os_abertas_series,
+        "os_fechadas_series": os_fechadas_series,
+        "os_lines_labels": os_lines_labels,
+        "os_lines_counts": os_lines_counts,
+        "os_types_labels": os_types_labels,
+        "os_types_counts": os_types_counts,
     }
+
+def get_os_telemetry(os_id):
+    from work_orders.models import WorkOrder
+    from sensors.models import SensorReading
+    
+    try:
+        wo = WorkOrder.objects.get(id=os_id)
+    except WorkOrder.DoesNotExist:
+        return {}
+        
+    # Busca as últimas 100 leituras da máquina até o momento de abertura da OS
+    # Isso congela o gráfico e mostra as 20 medições que levaram à abertura da OS,
+    # sem ficar atualizando com novas leituras depois disso.
+    readings = (
+        SensorReading.objects.filter(
+            machine=wo.machine,
+            timestamp__lte=wo.opening_date
+        )
+        .select_related('sensor')
+        .order_by('-timestamp')[:100]
+    )
+    
+    series_by_sensor = {}
+    dates_set = set()
+    
+    for r in readings:
+        label = f"{r.sensor.sensor_type} ({r.sensor.unit})"
+        dt_str = r.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        dates_set.add(dt_str)
+        if label not in series_by_sensor:
+            series_by_sensor[label] = {}
+        series_by_sensor[label][dt_str] = round(float(r.value), 2)
+        
+    sorted_dates = sorted(list(dates_set))
+    
+    # Limita às últimas 20 datas únicas (20 medições no tempo)
+    sorted_dates = sorted_dates[-20:]
+    
+    series_list = []
+    
+    for sensor_label, data_dict in series_by_sensor.items():
+        data_arr = [data_dict.get(d, 0) for d in sorted_dates]
+        series_list.append({
+            "name": sensor_label,
+            "data": data_arr
+        })
+        
+    return {
+        "dates": sorted_dates,
+        "series": series_list
+    }
+
+def get_sensor_problems():
+    from alerts.models import Alert
+    alerts_agg = (
+        Alert.objects.values('reading__sensor__sensor_type')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    
+    return [
+        {"sensor_type": a['reading__sensor__sensor_type'] or 'Desconhecido', "count": a['total']}
+        for a in alerts_agg
+    ]

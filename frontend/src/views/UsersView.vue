@@ -5,17 +5,31 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
         <h1 class="text-3xl font-bold tracking-tighter flex items-center gap-2">
-          Gestão de Usuários e Acessos
+          Gestão de Usuários
         </h1>
-        <p class="text-[var(--text-muted)] font-medium">Controle de perfis, hierarquias corporativas e permissões integradas.</p>
+        <p class="text-[var(--text-muted)] font-medium">Crie, edite e gerencie os acessos ao sistema PredictAI.</p>
       </div>
       <button 
+        v-if="authStore.isAdmin"
         @click="openCreateModal"
-        class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] font-bold shadow-md hover:-translate-y-0.5 transition-transform"
+        class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-vintage-mint)] text-white font-bold shadow-md hover:-translate-y-0.5 transition-transform"
       >
         <UserPlus class="w-5 h-5" />
         Novo Usuário
       </button>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div v-for="stat in statsCards" :key="stat.label" class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex items-center gap-3">
+        <div class="p-2 rounded-lg" :class="stat.iconBg">
+          <component :is="stat.icon" class="w-5 h-5" :class="stat.iconColor" />
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-[var(--text-main)]">{{ stat.value }}</p>
+          <p class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{ stat.label }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Filters & Search Toolbar -->
@@ -31,7 +45,7 @@
           id="search"
           v-model="searchQuery"
           type="text" 
-          placeholder="Pesquisar por nome, email ou CPF..." 
+          placeholder="Pesquisar por nome ou email..." 
           class="w-full max-w-md pl-10 pr-10 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-sm focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors text-[var(--text-main)] font-medium shadow-sm"
         />
         <button 
@@ -43,14 +57,28 @@
         </button>
       </div>
 
-      <!-- View Toggle Controls -->
-      <div class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0">
+      <!-- Profile Filter + View Toggle -->
+      <div class="flex items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
+        <!-- Profile filter -->
+        <select 
+          v-model="profileFilter"
+          class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl py-2.5 px-3 text-sm font-bold text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] shadow-sm"
+        >
+          <option value="">Todos os perfis</option>
+          <option value="administrador">Administrador</option>
+          <option value="gerente">Gerente</option>
+          <option value="tecnico">Técnico</option>
+          <option value="operador">Operador</option>
+          <option value="visualizador">Visualizador</option>
+        </select>
+
+        <!-- View Toggle -->
         <div class="bg-[var(--bg-card)] border border-[var(--border-color)] p-1 rounded-xl flex items-center shadow-sm shrink-0">
           <button 
             @click="viewMode = 'list'" 
             class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
             :class="viewMode === 'list' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
-            title="Visualização em Lista"
+            title="Lista"
           >
             <List class="w-5 h-5" />
           </button>
@@ -58,24 +86,26 @@
             @click="viewMode = 'grid'" 
             class="w-8 h-8 rounded-lg transition-all focus:outline-none flex items-center justify-center"
             :class="viewMode === 'grid' ? 'bg-[var(--bg-app)] text-[var(--color-vintage-mint)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'"
-            title="Visualização em Cards"
+            title="Cards"
           >
             <LayoutGrid class="w-5 h-5" />
           </button>
         </div>
       </div>
-    </div>    <!-- MAIN CONTENT AREA -->
-    <div v-if="loading" class="flex-1 flex items-center justify-center min-h-[400px]">
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <div v-if="loading" class="flex-1 flex items-center justify-center min-h-[300px]">
       <div class="flex flex-col items-center gap-4">
         <Loader2 class="w-8 h-8 animate-spin text-[var(--color-vintage-mint)]" />
-        <p class="text-[var(--text-muted)] font-bold animate-pulse">Consultando diretório central...</p>
+        <p class="text-[var(--text-muted)] font-bold animate-pulse">Carregando usuários...</p>
       </div>
     </div>
 
-    <div v-else-if="error" class="flex-1 flex items-center justify-center min-h-[400px]">
+    <div v-else-if="error" class="flex-1 flex items-center justify-center min-h-[300px]">
       <div class="bg-red-500/10 text-red-500 p-6 rounded-2xl border border-red-500/20 max-w-md text-center">
         <AlertTriangle class="w-10 h-10 mx-auto mb-3" />
-        <h3 class="font-bold text-lg mb-1">Falha de Autorização/Rede</h3>
+        <h3 class="font-bold text-lg mb-1">Falha ao carregar</h3>
         <p class="text-sm opacity-90">{{ error }}</p>
         <button @click="fetchUsers" class="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 transition-colors">
           Tentar Novamente
@@ -83,13 +113,13 @@
       </div>
     </div>
 
-    <div v-else-if="users.length === 0" class="flex-1 vintage-panel flex flex-col items-center justify-center p-12 text-center min-h-[400px]">
+    <div v-else-if="users.length === 0" class="flex-1 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
       <div class="w-20 h-20 bg-[var(--bg-app)] rounded-full flex items-center justify-center mb-6">
         <Users class="w-10 h-10 text-[var(--text-muted)]" />
       </div>
-      <h2 class="text-2xl font-bold mb-2">Sem usuários na base</h2>
-      <button @click="openCreateModal" class="px-6 py-3 rounded-lg border-2 border-[var(--color-vintage-mint)] text-[var(--color-vintage-mint)] font-bold hover:bg-[var(--color-vintage-mint)]/10 transition-colors">
-        Adicionar O Primeiro
+      <h2 class="text-2xl font-bold mb-2">Nenhum usuário cadastrado</h2>
+      <button v-if="authStore.isAdmin" @click="openCreateModal" class="mt-4 px-6 py-3 rounded-xl border-2 border-[var(--color-vintage-mint)] text-[var(--color-vintage-mint)] font-bold hover:bg-[var(--color-vintage-mint)]/10 transition-colors">
+        Criar o Primeiro Usuário
       </button>
     </div>
 
@@ -97,70 +127,97 @@
 
       <div v-if="filteredUsers.length === 0" class="flex-1 flex flex-col items-center justify-center p-8 text-[var(--text-muted)]">
         <p class="font-bold text-lg mb-1">Nenhum usuário encontrado</p>
-        <p class="text-sm">Sua busca não retornou resultados.</p>
-        <button v-if="searchQuery" @click="searchQuery = ''" class="mt-4 px-4 py-2 bg-[var(--bg-card)] hover:bg-[var(--border-color)] text-sm font-medium rounded-lg transition-colors border border-[var(--border-color)]">
-          Limpar Filtro
+        <p class="text-sm">Tente ajustar os filtros.</p>
+        <button @click="searchQuery = ''; profileFilter = ''" class="mt-4 px-4 py-2 bg-[var(--bg-card)] hover:bg-[var(--border-color)] text-sm font-medium rounded-lg transition-colors border border-[var(--border-color)]">
+          Limpar Filtros
         </button>
       </div>
       
       <!-- GRID VIEW -->
-      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6 items-start">
-        <div v-for="user in filteredUsers" :key="user.id" class="vintage-panel group relative flex flex-col p-6 h-full hover:-translate-y-1 transition-all duration-300">
-          
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div class="w-12 h-12 rounded-xl bg-[var(--color-vintage-mint)]/20 flex items-center justify-center text-[var(--color-vintage-mint)]">
-              <span class="font-bold text-xl uppercase">{{ user.name.substring(0,2) }}</span>
+      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-6 items-start">
+        <div 
+          v-for="user in filteredUsers" 
+          :key="user.id" 
+          class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl group relative flex flex-col p-5 hover:-translate-y-1 hover:shadow-lg hover:border-[var(--color-vintage-mint)]/40 transition-all duration-300"
+          :class="{ 'opacity-60': !user.is_active }"
+        >
+          <!-- Status ativo/inativo -->
+          <div class="absolute top-4 right-4">
+            <span 
+              class="w-2.5 h-2.5 rounded-full inline-block"
+              :class="user.is_active ? 'bg-green-400' : 'bg-red-400'"
+              :title="user.is_active ? 'Ativo' : 'Inativo'"
+            ></span>
+          </div>
+
+          <!-- Avatar + Actions -->
+          <div class="flex items-start gap-3 mb-4">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg uppercase shrink-0" :class="avatarBg(user.profile)">
+              {{ user.name.substring(0, 2) }}
             </div>
-            
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button @click="openEditModal(user)" title="Editar" class="p-1.5 rounded hover:bg-[var(--color-vintage-mustard)]/20 text-[var(--color-vintage-mustard)] transition-colors">
-                <Edit3 class="w-4 h-4" />
-              </button>
-            </div>
-            <!-- Indicator for Role -->
-            <div class="absolute right-0 top-0 group-hover:hidden">
-               <Shield v-if="user.system_role === 'ADMIN'" class="w-5 h-5 text-[var(--color-vintage-rose)]" title="Admin General" />
-               <Key v-else-if="user.system_role === 'MANAGER'" class="w-4 h-4 text-[var(--color-vintage-mustard)]" title="Supervisor de Área" />
-               <UserCheck v-else class="w-4 h-4 text-[var(--text-muted)]" title="Operação/Técnico" />
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-[var(--text-main)] truncate leading-tight">{{ user.name }}</h3>
+              <p class="text-xs text-[var(--text-muted)] truncate mt-0.5">{{ user.email }}</p>
             </div>
           </div>
 
-          <div class="mb-4 relative z-10 flex-1">
-            <h3 class="text-lg font-bold tracking-tight text-[var(--text-main)] truncate" :title="user.name">{{ user.name }}</h3>
-            <p class="text-sm font-medium text-[var(--text-muted)] truncate mt-1">{{ translateCompanyRole(user.company_role) }} • {{ user.department || 'Geral' }}</p>
+          <!-- Badge de perfil -->
+          <div class="mb-4">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold" :class="profileBadgeClass(user.profile)">
+              <component :is="profileIcon(user.profile)" class="w-3.5 h-3.5" />
+              {{ profileLabel(user.profile) }}
+            </span>
           </div>
 
-          <div class="space-y-3 mt-auto relative z-10 pt-4 border-t border-[var(--border-color)]">
-             <div class="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                <Mail class="w-4 h-4" />
-                <span class="truncate">{{ user.email }}</span>
-             </div>
-             <div class="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                <Phone class="w-4 h-4" />
-                <span class="truncate">{{ user.phone || 'Nenhum' }}</span>
-             </div>
+          <!-- Info extra -->
+          <div class="text-xs text-[var(--text-muted)] space-y-1 mt-auto pt-3 border-t border-[var(--border-color)]">
+            <div class="flex items-center gap-1.5">
+              <CalendarDays class="w-3.5 h-3.5 shrink-0" />
+              Desde {{ formatDate(user.created_at) }}
+            </div>
+          </div>
+
+          <!-- Actions hover -->
+          <div v-if="authStore.isAdmin" class="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button @click="openEditModal(user)" class="flex-1 py-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--color-vintage-mint)] bg-[var(--bg-app)] hover:bg-[var(--color-vintage-mint)]/10 border border-[var(--border-color)] rounded-lg transition-colors flex items-center justify-center gap-1">
+              <Edit3 class="w-3.5 h-3.5" /> Editar
+            </button>
+            <button @click="toggleActive(user)" class="flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors flex items-center justify-center gap-1"
+              :class="user.is_active 
+                ? 'text-[var(--color-vintage-rose)] hover:bg-[var(--color-vintage-rose)]/10 border-[var(--color-vintage-rose)]/30'
+                : 'text-green-500 hover:bg-green-500/10 border-green-500/30'"
+            >
+              <component :is="user.is_active ? UserX : UserCheck" class="w-3.5 h-3.5" />
+              {{ user.is_active ? 'Desativar' : 'Ativar' }}
+            </button>
           </div>
         </div>
       </div>
 
       <!-- LIST VIEW -->
-      <div v-else class="vintage-panel flex-1 overflow-hidden flex flex-col">
+      <div v-else class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl flex-1 overflow-hidden flex flex-col">
         <div class="overflow-x-auto flex-1">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="border-b border-[var(--border-color)] bg-[var(--bg-app)]/50">
-                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Identificação</th>
-                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Cargo & Departamento</th>
-                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Permissão (Tier)</th>
-                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Controles</th>
+                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Usuário</th>
+                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Perfil</th>
+                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
+                <th class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Criado em</th>
+                <th v-if="authStore.isAdmin" class="p-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[var(--border-color)]">
-              <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-[var(--bg-app)]/30 transition-colors group">
+              <tr 
+                v-for="user in filteredUsers" 
+                :key="user.id" 
+                class="hover:bg-[var(--bg-app)]/30 transition-colors group"
+                :class="{ 'opacity-60': !user.is_active }"
+              >
                 <td class="p-4">
                   <div class="flex items-center gap-3">
-                     <div class="w-10 h-10 rounded-lg bg-[var(--color-vintage-mint)]/10 flex items-center justify-center text-[var(--color-vintage-mint)] shrink-0 font-bold uppercase">
-                      {{ user.name.substring(0,2) }}
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm uppercase shrink-0" :class="avatarBg(user.profile)">
+                      {{ user.name.substring(0, 2) }}
                     </div>
                     <div>
                       <p class="font-bold text-sm text-[var(--text-main)]">{{ user.name }}</p>
@@ -169,24 +226,30 @@
                   </div>
                 </td>
                 <td class="p-4">
-                  <p class="font-bold text-sm text-[var(--text-main)]">{{ translateCompanyRole(user.company_role) }}</p>
-                  <p class="text-xs text-[var(--text-muted)]">{{ user.department || 'Nenhum' }}</p>
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold" :class="profileBadgeClass(user.profile)">
+                    <component :is="profileIcon(user.profile)" class="w-3.5 h-3.5" />
+                    {{ profileLabel(user.profile) }}
+                  </span>
                 </td>
                 <td class="p-4">
-                   <div class="flex items-center gap-1.5 font-bold text-xs uppercase" :class="getSystemRoleClass(user.system_role)">
-                      <Shield v-if="user.system_role === 'ADMIN'" class="w-3.5 h-3.5" />
-                      <Key v-else-if="user.system_role === 'MANAGER'" class="w-3.5 h-3.5" />
-                      <UserCheck v-else class="w-3.5 h-3.5" />
-                      {{ user.system_role }}
-                   </div>
+                  <span class="inline-flex items-center gap-1.5 text-xs font-bold" :class="user.is_active ? 'text-green-500' : 'text-red-400'">
+                    <span class="w-2 h-2 rounded-full" :class="user.is_active ? 'bg-green-400' : 'bg-red-400'"></span>
+                    {{ user.is_active ? 'Ativo' : 'Inativo' }}
+                  </span>
                 </td>
-                <td class="p-4 text-right">
+                <td class="p-4 text-sm text-[var(--text-muted)] font-medium">{{ formatDate(user.created_at) }}</td>
+                <td v-if="authStore.isAdmin" class="p-4 text-right">
                   <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button @click="openEditModal(user)" class="p-2 hover:bg-[var(--color-vintage-mustard)]/10 text-[var(--color-vintage-mustard)] rounded-lg transition-colors">
+                    <button @click="openEditModal(user)" class="p-2 hover:bg-[var(--color-vintage-mint)]/10 text-[var(--color-vintage-mint)] rounded-lg transition-colors" title="Editar">
                       <Edit3 class="w-4 h-4" />
                     </button>
-                    <!-- Somente exemplo visual ou funcional se API permitir deletar. Normalmente usuários são "desativados", mas para crud livre: -->
-                    <button @click="deleteUser(user.id)" class="p-2 hover:bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)] rounded-lg transition-colors">
+                    <button @click="toggleActive(user)" class="p-2 rounded-lg transition-colors"
+                      :class="user.is_active ? 'hover:bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)]' : 'hover:bg-green-500/10 text-green-500'"
+                      :title="user.is_active ? 'Desativar usuário' : 'Reativar usuário'"
+                    >
+                      <component :is="user.is_active ? UserX : UserCheck" class="w-4 h-4" />
+                    </button>
+                    <button @click="deleteUser(user.id)" class="p-2 hover:bg-[var(--color-vintage-rose)]/10 text-[var(--color-vintage-rose)] rounded-lg transition-colors" title="Excluir">
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
@@ -203,13 +266,17 @@
       <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
         
-        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-[101] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div class="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col relative z-[101] shadow-2xl overflow-hidden">
           
           <!-- Header -->
           <div class="p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-[var(--bg-app)] shrink-0">
             <div>
-              <h2 class="text-xl font-bold tracking-tight text-[var(--text-main)]">{{ isEditing ? 'Editar Perfil de Acesso' : 'Admissão de Colaborador na Plataforma' }}</h2>
-              <p class="text-xs text-[var(--text-muted)] font-bold mt-1">Insira os metadados pessoais e permissões operacionais estritas.</p>
+              <h2 class="text-xl font-bold tracking-tight text-[var(--text-main)]">
+                {{ isEditing ? 'Editar Usuário' : 'Criar Novo Usuário' }}
+              </h2>
+              <p class="text-xs text-[var(--text-muted)] font-bold mt-1">
+                {{ isEditing ? 'Altere o perfil ou status do usuário.' : 'Preencha os dados para criar o acesso.' }}
+              </p>
             </div>
             <button @click="closeModal" class="p-2 hover:bg-[var(--bg-card)] rounded-lg transition-colors">
               <X class="w-5 h-5 text-[var(--text-muted)]" />
@@ -217,128 +284,106 @@
           </div>
 
           <!-- Body Form -->
-          <form @submit.prevent="saveUser" class="p-6 overflow-y-auto flex-1 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              <!-- NOME -->
-              <div class="col-span-1 md:col-span-2">
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nome Completo do Funcionário*</label>
-                <input 
-                  v-model="form.name" type="text" required
-                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="Ex: Ana Luísa Moreira"
-                />
-              </div>
-              
-              <!-- CPF -->
-              <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">CPF*</label>
-                <input 
-                  v-model="form.cpf" type="text" required maxlength="14"
-                  @input="handleCpfInput"
-                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="000.000.000-00"
-                />
-              </div>
+          <form @submit.prevent="saveUser" class="p-6 overflow-y-auto flex-1 space-y-5">
+            
+            <!-- NOME -->
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nome Completo *</label>
+              <input 
+                v-model="form.name" type="text" required
+                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
+                placeholder="Ex: Ana Luísa Moreira"
+              />
+            </div>
+            
+            <!-- E-MAIL -->
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">E-mail *</label>
+              <input 
+                v-model="form.email" type="email" required :disabled="isEditing"
+                class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                placeholder="usuario@empresa.com"
+              />
+              <p v-if="isEditing" class="text-xs text-[var(--text-muted)] mt-1 opacity-70">O e-mail não pode ser alterado.</p>
+            </div>
 
-               <!-- E-MAIL -->
+            <!-- SENHA (somente criação) -->
+            <div v-if="!isEditing" class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Endereço de E-mail Corporativo*</label>
-                <input 
-                  v-model="form.email" type="email" required
-                  class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="ana.moreira@empresa.com"
-                />
-              </div>
-              
-              <!-- PASSWORD E CONFIRM (Apenas Criação ou Troca Forçada) -->
-              <div v-if="!isEditing" class="col-span-1">
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Senha Inicial de Autenticação*</label>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Senha *</label>
                 <input 
                   v-model="form.password" type="password" :required="!isEditing"
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                  placeholder="Mínimo de 8 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                 />
-                <p class="text-xs text-[var(--text-muted)] mt-1 opacity-70">Sua senha deve ser segura.</p>
               </div>
-              
-              <div v-if="!isEditing" class="col-span-1">
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Confirmar Senha*</label>
+              <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Confirmar Senha *</label>
                 <input 
                   v-model="form.password_confirm" type="password" :required="!isEditing"
                   class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-rose)] transition-colors" 
                   placeholder="Repita a senha"
                 />
               </div>
+            </div>
 
-              <!-- HIERARQUIA CORPORATIVA -->
-              <div class="col-span-1 border-t border-[var(--border-color)] pt-4 mt-2">
-                 <h4 class="text-sm font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
-                    <Briefcase class="w-4 h-4 text-[var(--color-vintage-mustard)]" />
-                    Papel Corporativo
-                 </h4>
-                 
-                 <div class="space-y-4">
-                     <div>
-                        <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Setor / Departamento</label>
-                        <input 
-                        v-model="form.department" type="text"
-                        class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mustard)] transition-colors" 
-                        placeholder="Ex: Engenharia Reversa"
-                        />
-                     </div>
-                     <div>
-                        <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Cargo Nominal</label>
-                        <select v-model="form.company_role" class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] font-bold focus:outline-none focus:border-[var(--color-vintage-mustard)] transition-colors">
-                        <option value="OPERATOR">Operador(a)</option>
-                        <option value="TECHNICIAN">Técnico(a) Manutenção</option>
-                        <option value="ANALYST">Analista</option>
-                        <option value="MANAGER">Gerente Setorial</option>
-                        <option value="DIRECTOR">Conselho/Diretor</option>
-                        <option value="INTERN">Estagiário(a)</option>
-                        </select>
-                     </div>
-                 </div>
+            <!-- PERFIL DO SISTEMA -->
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Perfil de Acesso *</label>
+              <div class="grid grid-cols-1 gap-2">
+                <label 
+                  v-for="opt in profileOptions" 
+                  :key="opt.value"
+                  class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+                  :class="form.profile === opt.value 
+                    ? 'border-[var(--color-vintage-mint)] bg-[var(--color-vintage-mint)]/10' 
+                    : 'border-[var(--border-color)] hover:border-[var(--color-vintage-mint)]/40'"
+                >
+                  <input type="radio" v-model="form.profile" :value="opt.value" class="hidden" />
+                  <div class="p-1.5 rounded-lg" :class="opt.iconBg">
+                    <component :is="opt.icon" class="w-4 h-4" :class="opt.iconColor" />
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-bold text-[var(--text-main)]">{{ opt.label }}</p>
+                    <p class="text-xs text-[var(--text-muted)]">{{ opt.description }}</p>
+                  </div>
+                  <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                    :class="form.profile === opt.value ? 'border-[var(--color-vintage-mint)]' : 'border-[var(--border-color)]'"
+                  >
+                    <div v-if="form.profile === opt.value" class="w-2 h-2 rounded-full bg-[var(--color-vintage-mint)]"></div>
+                  </div>
+                </label>
               </div>
+            </div>
 
-              <!-- PERMISSÕES SISTÊMICAS -->
-              <div class="col-span-1 border-t border-[var(--border-color)] pt-4 mt-2">
-                 <h4 class="text-sm font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
-                    <ShieldCheck class="w-4 h-4 text-[var(--color-vintage-mint)]" />
-                    Permissão Sistêmica (PredictAI)
-                 </h4>
-
-                 <div class="space-y-4">
-                     <div>
-                        <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Nível de Acesso*</label>
-                        <select v-model="form.system_role" required class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] font-bold focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors">
-                           <option value="TECHNICIAN">Básico (Apenas Leitura & Alertas)</option>
-                           <option value="MANAGER">Gestor (Adicionar Equipamentos)</option>
-                           <option value="ADMIN">Administrador DBO (Full)</option>
-                        </select>
-                     </div>
-                     <div>
-                        <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Telefone / Rádio</label>
-                        <input 
-                        v-model="form.phone" type="text" maxlength="15"
-                        @input="handlePhoneInput"
-                        class="w-full bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--color-vintage-mint)] transition-colors" 
-                        placeholder="(11) 90000-0000"
-                        />
-                     </div>
-                 </div>
+            <!-- STATUS (apenas edição) -->
+            <div v-if="isEditing" class="flex items-center justify-between p-4 bg-[var(--bg-app)] rounded-xl border border-[var(--border-color)]">
+              <div>
+                <p class="text-sm font-bold text-[var(--text-main)]">Conta Ativa</p>
+                <p class="text-xs text-[var(--text-muted)]">Usuários inativos não conseguem fazer login.</p>
               </div>
-
+              <button 
+                type="button"
+                @click="form.is_active = !form.is_active"
+                class="relative w-12 h-6 rounded-full transition-colors"
+                :class="form.is_active ? 'bg-[var(--color-vintage-mint)]' : 'bg-[var(--border-color)]'"
+              >
+                <span 
+                  class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                  :class="form.is_active ? 'left-7' : 'left-1'"
+                ></span>
+              </button>
             </div>
 
             <!-- Actions -->
-            <div class="flex gap-4 pt-6 border-t border-[var(--border-color)]">
+            <div class="flex gap-4 pt-2 border-t border-[var(--border-color)]">
               <button type="button" @click="closeModal" class="flex-1 py-3 border-2 border-[var(--border-color)] text-[var(--text-muted)] font-bold text-sm rounded-xl hover:bg-[var(--bg-app)] hover:text-[var(--text-main)] transition-colors">
                 Cancelar
               </button>
-              <button type="submit" class="flex-1 py-3 bg-[var(--color-vintage-mint)] text-white font-bold text-sm rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                <Save class="w-4 h-4" />
-                {{ isEditing ? 'Aplicar Mudanças' : 'Registrar Usuário' }}
+              <button type="submit" :disabled="saving" class="flex-1 py-3 bg-[var(--color-vintage-mint)] text-white font-bold text-sm rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-70">
+                <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
+                <Save v-else class="w-4 h-4" />
+                {{ isEditing ? 'Salvar Alterações' : 'Criar Usuário' }}
               </button>
             </div>
           </form>
@@ -351,72 +396,169 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { UserPlus, Search, X, Loader2, Edit3, Trash2, AlertTriangle, Users, Save, Phone, Mail, LayoutGrid, List, Shield, Key, UserCheck, Briefcase, ShieldCheck } from 'lucide-vue-next'
+import { ref, computed, onMounted, markRaw } from 'vue'
+import { 
+  UserPlus, Search, X, Loader2, Edit3, Trash2, AlertTriangle, Users, Save, 
+  LayoutGrid, List, Shield, Key, UserCheck, UserX, CalendarDays,
+  Eye, Settings, Wrench
+} from 'lucide-vue-next'
 import api from '../services/api'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
 
 const users = ref([])
 const loading = ref(true)
+const saving = ref(false)
 const error = ref(null)
 const showModal = ref(false)
 const isEditing = ref(false)
 const viewMode = ref('list')
 const searchQuery = ref('')
+const profileFilter = ref('')
 
+// ─── Profile helpers ──────────────────────────────────────
+const profileOptions = [
+  {
+    value: 'administrador',
+    label: 'Administrador',
+    description: 'Acesso total ao sistema, incluindo usuários e configurações.',
+    icon: markRaw(Shield),
+    iconBg: 'bg-[var(--color-vintage-rose)]/20',
+    iconColor: 'text-[var(--color-vintage-rose)]',
+  },
+  {
+    value: 'gerente',
+    label: 'Gerente',
+    description: 'Vê todas as OS e relatórios. Pode gerenciar a equipe.',
+    icon: markRaw(Key),
+    iconBg: 'bg-[var(--color-vintage-mustard)]/20',
+    iconColor: 'text-[var(--color-vintage-mustard)]',
+  },
+  {
+    value: 'tecnico',
+    label: 'Técnico',
+    description: 'Vê e executa apenas as OS atribuídas ou abertas por ele.',
+    icon: markRaw(Wrench),
+    iconBg: 'bg-[var(--color-vintage-mint)]/20',
+    iconColor: 'text-[var(--color-vintage-mint)]',
+  },
+  {
+    value: 'operador',
+    label: 'Operador',
+    description: 'Acesso básico: pode abrir OS e ver suas próprias tarefas.',
+    icon: markRaw(Settings),
+    iconBg: 'bg-blue-500/20',
+    iconColor: 'text-blue-500',
+  },
+  {
+    value: 'visualizador',
+    label: 'Visualizador',
+    description: 'Apenas leitura. Não pode criar ou editar dados.',
+    icon: markRaw(Eye),
+    iconBg: 'bg-[var(--text-muted)]/20',
+    iconColor: 'text-[var(--text-muted)]',
+  },
+]
+
+const profileLabel = (p) => {
+  const opt = profileOptions.find(o => o.value === p)
+  return opt?.label || p || '—'
+}
+
+const profileIcon = (p) => {
+  const opt = profileOptions.find(o => o.value === p)
+  return opt?.icon || Eye
+}
+
+const profileBadgeClass = (p) => {
+  const map = {
+    administrador: 'text-[var(--color-vintage-rose)] bg-[var(--color-vintage-rose)]/15 border border-[var(--color-vintage-rose)]/20',
+    gerente: 'text-[var(--color-vintage-mustard)] bg-[var(--color-vintage-mustard)]/15 border border-[var(--color-vintage-mustard)]/20',
+    tecnico: 'text-[var(--color-vintage-mint)] bg-[var(--color-vintage-mint)]/15 border border-[var(--color-vintage-mint)]/20',
+    operador: 'text-blue-500 bg-blue-500/15 border border-blue-500/20',
+    visualizador: 'text-[var(--text-muted)] bg-[var(--text-muted)]/10 border border-[var(--border-color)]',
+  }
+  return map[p] || 'text-[var(--text-muted)] bg-[var(--text-muted)]/10 border border-[var(--border-color)]'
+}
+
+const avatarBg = (p) => {
+  const map = {
+    administrador: 'bg-[var(--color-vintage-rose)]',
+    gerente: 'bg-[var(--color-vintage-mustard)]',
+    tecnico: 'bg-[var(--color-vintage-mint)]',
+    operador: 'bg-blue-500',
+    visualizador: 'bg-slate-500',
+  }
+  return map[p] || 'bg-slate-500'
+}
+
+const formatDate = (dt) => {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+// ─── Stats ────────────────────────────────────────────────
+const statsCards = computed(() => [
+  {
+    label: 'Total',
+    value: users.value.length,
+    icon: markRaw(Users),
+    iconBg: 'bg-[var(--color-vintage-mint)]/20',
+    iconColor: 'text-[var(--color-vintage-mint)]',
+  },
+  {
+    label: 'Ativos',
+    value: users.value.filter(u => u.is_active).length,
+    icon: markRaw(UserCheck),
+    iconBg: 'bg-green-500/20',
+    iconColor: 'text-green-500',
+  },
+  {
+    label: 'Administradores',
+    value: users.value.filter(u => u.profile === 'administrador').length,
+    icon: markRaw(Shield),
+    iconBg: 'bg-[var(--color-vintage-rose)]/20',
+    iconColor: 'text-[var(--color-vintage-rose)]',
+  },
+  {
+    label: 'Técnicos',
+    value: users.value.filter(u => ['tecnico', 'operador'].includes(u.profile)).length,
+    icon: markRaw(Wrench),
+    iconBg: 'bg-[var(--color-vintage-mustard)]/20',
+    iconColor: 'text-[var(--color-vintage-mustard)]',
+  },
+])
+
+// ─── Filter ───────────────────────────────────────────────
 const filteredUsers = computed(() => {
-  if (!searchQuery.value) return users.value
-  const q = searchQuery.value.toLowerCase()
-  return users.value.filter(u => 
-    (u.name && u.name.toLowerCase().includes(q)) ||
-    (u.email && u.email.toLowerCase().includes(q)) ||
-    (u.cpf && u.cpf.toLowerCase().includes(q))
-  )
+  let list = users.value
+  if (profileFilter.value) {
+    list = list.filter(u => u.profile === profileFilter.value)
+  }
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(u =>
+      (u.name && u.name.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q))
+    )
+  }
+  return list
 })
 
-const applyCpfMask = (value) => {
-  let v = value.replace(/\D/g, '')
-  if (v.length > 11) v = v.substring(0, 11)
-  
-  if (v.length <= 3) return v
-  if (v.length <= 6) return `${v.substring(0, 3)}.${v.substring(3)}`
-  if (v.length <= 9) return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6)}`
-  return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6, 9)}-${v.substring(9)}`
-}
-
-const applyPhoneMask = (value) => {
-  let v = value.replace(/\D/g, '')
-  if (v.length > 11) v = v.substring(0, 11)
-  
-  if (v.length === 0) return ''
-  if (v.length <= 2) return `(${v}`
-  if (v.length <= 6) return `(${v.substring(0, 2)}) ${v.substring(2)}`
-  if (v.length <= 10) return `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`
-  return `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`
-}
-
-const handleCpfInput = (e) => {
-  form.value.cpf = applyCpfMask(e.target.value)
-}
-
-const handlePhoneInput = (e) => {
-  form.value.phone = applyPhoneMask(e.target.value)
-}
-
+// ─── Form ─────────────────────────────────────────────────
 const defaultForm = {
   id: null,
   name: '',
-  cpf: '',
   email: '',
-  password: '', 
+  password: '',
   password_confirm: '',
-  phone: '',
-  department: '',
-  system_role: 'TECHNICIAN',
-  company_role: 'OPERATOR'
+  profile: 'tecnico',
+  is_active: true,
 }
-
 const form = ref({ ...defaultForm })
 
+// ─── CRUD ─────────────────────────────────────────────────
 const fetchUsers = async () => {
   loading.value = true
   error.value = null
@@ -424,33 +566,14 @@ const fetchUsers = async () => {
     const response = await api.get('users/')
     users.value = response.data.results || response.data
   } catch (err) {
-    if (err.response && err.response.status === 403) {
-       error.value = 'Acesso Negado: Apenas supervisores e administradores podem listar o diretório completo de usuários.'
+    if (err.response?.status === 403) {
+      error.value = 'Acesso negado. Apenas administradores e gerentes podem listar usuários.'
     } else {
-       error.value = 'Incapaz de extrair as instâncias dos usuários. Verifique com a central.'
+      error.value = 'Não foi possível carregar os usuários.'
     }
   } finally {
     loading.value = false
   }
-}
-
-const translateCompanyRole = (role) => {
-  const map = {
-    'ADMIN': 'Administrador Geral',
-    'MANAGER': 'Gerente Setorial',
-    'ANALYST': 'Analista de Operações',
-    'INTERN': 'Escalonador / Estagiário',
-    'DIRECTOR': 'Corpo Diretor',
-    'TECHNICIAN': 'Corpo Técnico Preditivo',
-    'OPERATOR': 'Operador Fabril'
-  }
-  return map[role] || role
-}
-
-const getSystemRoleClass = (role) => {
-   if (role === 'ADMIN') return 'text-[var(--color-vintage-rose)]'
-   if (role === 'MANAGER') return 'text-[var(--color-vintage-mustard)]'
-   return 'text-[var(--text-muted)]'
 }
 
 const openCreateModal = () => {
@@ -461,59 +584,76 @@ const openCreateModal = () => {
 
 const openEditModal = (userPayload) => {
   isEditing.value = true
-  // omitimos a senha aqui pro form não ficar maluco
-  const { password, password_confirm, ...safeUser } = userPayload
-  form.value = { ...defaultForm, ...safeUser }
+  form.value = {
+    id: userPayload.id,
+    name: userPayload.name,
+    email: userPayload.email,
+    profile: userPayload.profile,
+    is_active: userPayload.is_active,
+    password: '',
+    password_confirm: '',
+  }
   showModal.value = true
 }
 
-const closeModal = () => {
-  showModal.value = false
-}
+const closeModal = () => { showModal.value = false }
 
 const saveUser = async () => {
+  saving.value = true
   try {
-    const payload = { ...form.value }
     if (isEditing.value) {
-       delete payload.password 
-       delete payload.password_confirm
-       await api.put(`users/${payload.id}/`, payload)
+      await api.patch(`users/${form.value.id}/`, {
+        name: form.value.name,
+        profile: form.value.profile,
+        is_active: form.value.is_active,
+      })
     } else {
-       // Na criação envia todos
-       if (payload.password !== payload.password_confirm) {
-           alert("As senhas não conferem!")
-           return
-       }
-       payload.username = payload.email
-       await api.post('users/', payload)
+      if (form.value.password !== form.value.password_confirm) {
+        alert('As senhas não conferem!')
+        return
+      }
+      await api.post('users/', {
+        name: form.value.name,
+        email: form.value.email,
+        password: form.value.password,
+        password_confirm: form.value.password_confirm,
+        profile: form.value.profile,
+        username: form.value.email,
+      })
     }
-    
     closeModal()
     fetchUsers()
   } catch (err) {
     console.error(err)
-    const errorMsg = err.response?.data?.detail || 
-                     err.response?.data?.password_confirm?.[0] || 
-                     err.response?.data?.username?.[0] ||
-                     err.response?.data?.cpf?.[0] ||
-                     err.response?.data?.email?.[0] ||
-                     (err.response?.data ? JSON.stringify(err.response.data) : 'Erro desconhecido ao salvar os dados.')
-    alert(`Erro ao salvar: ${errorMsg}`)
+    const data = err.response?.data
+    const msg = data?.detail || data?.email?.[0] || data?.password?.[0] || data?.password_confirm?.[0] || JSON.stringify(data) || 'Erro desconhecido.'
+    alert(`Erro ao salvar: ${msg}`)
+  } finally {
+    saving.value = false
+  }
+}
+
+const toggleActive = async (user) => {
+  const action = user.is_active ? 'desativar' : 'reativar'
+  if (!confirm(`Tem certeza que deseja ${action} o usuário "${user.name}"?`)) return
+  try {
+    await api.patch(`users/${user.id}/`, { is_active: !user.is_active, name: user.name, profile: user.profile })
+    user.is_active = !user.is_active
+  } catch (err) {
+    alert('Falha ao alterar status do usuário.')
   }
 }
 
 const deleteUser = async (id) => {
-  if (confirm('Ação destrutiva identificada! Expurgar esta credencial? Este colaborador não fará mais parte da arquitetura!')) {
-    try {
-      await api.delete(`users/${id}/`)
-      fetchUsers()
-    } catch (err) {
-      alert('A exclusão falhou. Pode ser restrição de hierarquia.')
-    }
+  if (!confirm('Excluir este usuário permanentemente? Esta ação não pode ser desfeita.')) return
+  try {
+    await api.delete(`users/${id}/`)
+    fetchUsers()
+  } catch (err) {
+    const msg = err.response?.data?.detail || 'A exclusão falhou.'
+    alert(msg)
   }
 }
 
-onMounted(() => {
-  fetchUsers()
-})
+onMounted(() => { fetchUsers() })
 </script>

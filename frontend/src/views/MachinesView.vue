@@ -6,7 +6,7 @@
         <h1 class="text-3xl font-bold tracking-tighter">Frota Operacional</h1>
         <p class="text-[var(--text-muted)] font-medium">Gestão, status e cadastramento de equipamentos ativos.</p>
       </div>
-      <button @click="openCreateModal"
+      <button v-if="!authStore.isViewer" @click="openCreateModal"
         class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-vintage-mint)] text-white font-bold shadow-md hover:-translate-y-0.5 transition-transform">
         <Plus class="w-5 h-5" /> Cadastrar Máquina
       </button>
@@ -121,11 +121,11 @@
               </td>
               <td class="px-6 py-4 text-center">
                 <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button @click.stop="openEditModal(mach)" title="Editar"
+                  <button v-if="!authStore.isViewer" @click.stop="openEditModal(mach)" title="Editar"
                     class="p-1.5 rounded hover:bg-[var(--color-vintage-mint)]/20 text-[var(--color-vintage-mint)] transition-colors">
                     <Edit3 class="w-4 h-4" />
                   </button>
-                  <button @click.stop="deleteMachine(mach.id)" title="Deletar"
+                  <button v-if="authStore.isAdminOrManager" @click.stop="deleteMachine(mach.id)" title="Deletar"
                     class="p-1.5 rounded hover:bg-[var(--color-vintage-rose)]/20 text-[var(--color-vintage-rose)] transition-colors">
                     <Trash2 class="w-4 h-4" />
                   </button>
@@ -173,11 +173,11 @@
             <div v-else class="text-[11px] text-[var(--text-muted)]">Sem sensores cadastrados</div>
 
             <div class="mt-auto pt-4 border-t border-[var(--border-color)] flex gap-2">
-              <button @click.stop="openEditModal(mach)"
+              <button v-if="!authStore.isViewer" @click.stop="openEditModal(mach)"
                 class="flex-1 flex justify-center items-center gap-1.5 py-2 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--color-vintage-mint)] hover:text-white text-[var(--text-main)] text-xs font-bold transition-colors border border-[var(--border-color)] hover:border-transparent">
                 <Edit3 class="w-3.5 h-3.5" /> Editar
               </button>
-              <button @click.stop="deleteMachine(mach.id)"
+              <button v-if="authStore.isAdminOrManager" @click.stop="deleteMachine(mach.id)"
                 class="py-2 px-3 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--color-vintage-rose)]/10 text-[var(--text-muted)] hover:text-[var(--color-vintage-rose)] transition-colors border border-[var(--border-color)] hover:border-[var(--color-vintage-rose)]/30">
                 <Trash2 class="w-4 h-4" />
               </button>
@@ -274,6 +274,18 @@
                   <label class="field-label">Data de Instalação</label>
                   <input v-model="form.installation_date" type="date"
                     class="field-input" />
+                </div>
+
+                <div>
+                  <label class="field-label" title="0 = contínuo">Int. Telemetria (min)</label>
+                  <input v-model.number="form.telemetry_interval" type="number" min="0"
+                    placeholder="0" class="field-input" />
+                </div>
+
+                <div>
+                  <label class="field-label" title="Em dias">Int. Manutenção Prev. (dias)</label>
+                  <input v-model.number="form.preventive_maintenance_interval" type="number" min="1"
+                    placeholder="Ex: 180" class="field-input" />
                 </div>
 
                 <!-- Status (only when editing) -->
@@ -415,7 +427,7 @@
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <button @click="openEditModal(selectedMachine); showDetailModal = false"
+              <button v-if="!authStore.isViewer" @click="openEditModal(selectedMachine); showDetailModal = false"
                 class="px-3 py-2 rounded-xl bg-[var(--color-vintage-mint)]/10 text-[var(--color-vintage-mint)] border border-[var(--color-vintage-mint)]/30 font-bold text-sm hover:bg-[var(--color-vintage-mint)] hover:text-white transition-all flex items-center gap-1.5">
                 <Edit3 class="w-4 h-4" /> Editar
               </button>
@@ -481,8 +493,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { Search, Plus, Filter, Edit3, Trash2, X, ChevronLeft, ChevronRight, Layers, Cpu, Save, LayoutGrid, List, Radio } from 'lucide-vue-next'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 // ── State ──────────────────────────────────────────────────────────────────────
+const authStore = useAuthStore()
 const viewMode = ref('table')
 const machines = ref([])
 const totalItems = ref(0)
@@ -509,6 +523,8 @@ const emptyForm = {
   serial_number: '',
   production_line: '',
   installation_date: '',
+  telemetry_interval: 0,
+  preventive_maintenance_interval: null,
   status: 'ativa',
 }
 const form = ref({ ...emptyForm })
@@ -639,6 +655,8 @@ const openEditModal = (machine) => {
     serial_number: machine.serial_number || '',
     production_line: machine.production_line || '',
     installation_date: machine.installation_date || '',
+    telemetry_interval: machine.telemetry_interval || 0,
+    preventive_maintenance_interval: machine.preventive_maintenance_interval || null,
     status: machine.current_status?.status || 'ativa',
   }
   sensors.value = machine.sensors ? machine.sensors.map(s => ({ ...s })) : []
@@ -666,6 +684,8 @@ const saveMachine = async () => {
       serial_number: form.value.serial_number,
       production_line: form.value.production_line,
       installation_date: form.value.installation_date || null,
+      telemetry_interval: form.value.telemetry_interval || 0,
+      preventive_maintenance_interval: form.value.preventive_maintenance_interval || null,
     }
 
     if (isEditing.value) {

@@ -19,6 +19,7 @@ class MaintenanceSerializer(serializers.ModelSerializer):
 class WorkOrderSerializer(serializers.ModelSerializer):
     machine_detail = MachineListSerializer(source='machine', read_only=True)
     opened_by_detail = UserListSerializer(source='opened_by', read_only=True)
+    assigned_to_detail = UserListSerializer(source='assigned_to', read_only=True)
     status_detail = WorkOrderStatusSerializer(source='status', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     order_type_display = serializers.CharField(source='get_order_type_display', read_only=True)
@@ -42,3 +43,4 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                 'value': last.value if last else None
             })
         return result
+

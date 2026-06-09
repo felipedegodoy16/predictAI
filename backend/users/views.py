@@ -21,12 +21,12 @@ from .serializers import (
     ResetPasswordWithCodeSerializer,
 )
 
-from .permissions import IsAdmin, IsAdminOrSelf, IsAdminOrReadOnly
+from .permissions import IsAdminOrManager
 
 
 class UserListCreateView(generics.ListCreateAPIView):
     queryset = User.objects.all()
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrManager]
     search_fields = ['name', 'email']
     filterset_fields = ['profile', 'is_active']
     ordering_fields = ['name', 'created_at']
@@ -52,7 +52,7 @@ class UserListCreateView(generics.ListCreateAPIView):
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated, IsAdminOrSelf]
+    permission_classes = [IsAdminOrManager]
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -92,9 +92,9 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {'detail': 'Voce nao pode excluir sua propria conta.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if request.user.profile != 'administrador':
+        if request.user.profile not in ['administrador', 'gerente']:
             return Response(
-                {'detail': 'Apenas administradores podem excluir usuarios.'},
+                {'detail': 'Apenas administradores e gerentes podem excluir usuarios.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
         return super().destroy(request, *args, **kwargs)

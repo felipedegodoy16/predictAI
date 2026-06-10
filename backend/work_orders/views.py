@@ -46,7 +46,9 @@ class WorkOrderViewSet(viewsets.ModelViewSet):
         """Endpoint dedicado para mover OS entre colunas do Kanban.
         Qualquer usuário autenticado pode usar — não requer ser admin ou criador."""
         try:
-            wo = WorkOrder.objects.select_related('machine', 'opened_by', 'status').get(pk=pk)
+            wo = WorkOrder.objects.select_related(
+                'machine', 'opened_by', 'assigned_to', 'status'
+            ).get(pk=pk)
         except WorkOrder.DoesNotExist:
             return Response({'error': 'OS não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         new_status_id = request.data.get('status')
@@ -58,7 +60,8 @@ class WorkOrderViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Status inválido.'}, status=status.HTTP_400_BAD_REQUEST)
         wo.status = new_status
         wo.save(update_fields=['status'])
-        return Response(WorkOrderSerializer(wo).data)
+        serializer = WorkOrderSerializer(wo, context={'request': request})
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         wo = serializer.save(opened_by=self.request.user)

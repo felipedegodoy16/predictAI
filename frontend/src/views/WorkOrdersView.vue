@@ -102,9 +102,11 @@
           <div 
             v-for="wo in getOrdersForColumn(col.id)" 
             :key="wo.id"
-            :draggable="'true'"
+            :draggable="!authStore.isViewer"
             @dragstart="onDragStart($event, wo)"
             @dragend="onDragEnd"
+            @dragenter.prevent
+            @dragover.prevent
             @click="onCardClick(wo)"
             class="kanban-card bg-[var(--bg-app)] border border-[var(--border-color)] rounded-xl p-3 shadow-sm hover:border-[var(--color-vintage-mint)] hover:shadow-md transition-all group relative"
             :class="!authStore.isViewer ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'"
@@ -418,6 +420,9 @@ const daysFilter = ref(15)
 const dragOverColumn = ref(null)
 const isDragging = ref(false)
 const draggedWoId = ref(null)
+// Non-reactive reference to persist across dragend/drop event ordering
+let _activeDragId = null
+let _wasDragging = false
 
 const canCreate = computed(() => authStore.user?.profile !== 'visualizador')
 
@@ -467,13 +472,15 @@ const colColor = (col) => {
 
 // ─── Drag & Drop ──────────────────────────────────────────
 const onDragStart = (e, wo) => {
+  // Store in both reactive ref and non-reactive module var
+  // _activeDragId persists reliably even when dragend fires before drop
+  _activeDragId = wo.id
+  _wasDragging = false
   isDragging.value = true
   draggedWoId.value = wo.id
   if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = 'move'
     e.dataTransfer.effectAllowed = 'move'
-    // Optional fallback for older browsers
-    e.dataTransfer.setData('text/plain', wo.id.toString())
+    e.dataTransfer.setData('text/plain', String(wo.id))
   }
   // Visual feedback: slight opacity on the dragged card
   setTimeout(() => {
@@ -482,12 +489,17 @@ const onDragStart = (e, wo) => {
 }
 
 const onDragEnd = (e) => {
+  // Mark that a drag just happened (for click guard)
+  _wasDragging = true
   isDragging.value = false
   dragOverColumn.value = null
-  draggedWoId.value = null
   if (e.target) e.target.style.opacity = ''
-  // Reset isDragging after a tick so click handler doesn't fire
-  setTimeout(() => { isDragging.value = false }, 50)
+  // Clear _wasDragging after a short delay so click handler can check it
+  setTimeout(() => {
+    _wasDragging = false
+    draggedWoId.value = null
+    _activeDragId = null
+  }, 200)
 }
 
 const onDragOver = (e, colId) => {
@@ -500,22 +512,35 @@ const onDragOver = (e, colId) => {
 
 const onCardClick = (wo) => {
   // Ignore click if it was triggered right after a drag
-  if (isDragging.value) return
+  if (_wasDragging || isDragging.value) return
   openReadModal(wo)
 }
 
 const onDrop = async (e, toStatusId) => {
   e.preventDefault()
   dragOverColumn.value = null
-  isDragging.value = false
-  
-  const sourceId = draggedWoId.value || (e.dataTransfer ? e.dataTransfer.getData('text/plain') : null)
-  draggedWoId.value = null
-  
-  if (!sourceId) return
 
-  const wo = workOrders.value.find(x => x.id === parseInt(sourceId))
-  if (!wo || wo.status === toStatusId) return
+  // Use _activeDragId (non-reactive, persists reliably across dragend/drop ordering)
+  // Fallback to dataTransfer for cross-browser compatibility
+  const rawId = _activeDragId ?? (e.dataTransfer ? e.dataTransfer.getData('text/plain') : null)
+  const sourceId = rawId ? parseInt(rawId) : null
+
+  // Clear state after reading
+  _activeDragId = null
+  draggedWoId.value = null
+  isDragging.value = false
+
+  if (!sourceId) {
+    console.warn('[Kanban] onDrop: nenhum ID de card encontrado')
+    return
+  }
+
+  const wo = workOrders.value.find(x => x.id === sourceId)
+  if (!wo) {
+    console.warn('[Kanban] onDrop: work order não encontrada:', sourceId)
+    return
+  }
+  if (wo.status === toStatusId) return  // sem mudança
 
   const originalStatus = wo.status
   wo.status = toStatusId  // optimistic update
@@ -524,9 +549,17 @@ const onDrop = async (e, toStatusId) => {
     await moveWorkOrderStatus(wo.id, toStatusId)
     window.dispatchEvent(new Event('refresh-notifications'))
   } catch (error) {
-    console.error('Drop update failed', error)
-    wo.status = originalStatus
-    alert('Não foi possível mover o card.')
+    const status = error.response?.status
+    const detail = error.response?.data?.detail || error.response?.data?.error || error.message
+    console.error('[Kanban] Falha ao mover card:', status, detail)
+    wo.status = originalStatus  // rollback
+    if (status === 403) {
+      alert('Sem permissão para mover este card.')
+    } else if (status === 400) {
+      alert(`Dados inválidos: ${detail}`)
+    } else {
+      alert(`Não foi possível mover o card. (${status || 'Erro de rede'})`)
+    }
   }
 }
 

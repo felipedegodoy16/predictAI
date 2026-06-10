@@ -51,15 +51,15 @@
         </router-link>
       </nav>
       <div class="p-4 border-t border-[var(--border-color)]">
-        <div class="mb-3 flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-[var(--color-vintage-mint)]/20 flex items-center justify-center text-[var(--color-vintage-mint)] font-bold uppercase text-sm shrink-0">
+        <router-link to="/profile" class="mb-3 flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-[var(--bg-app)] transition-colors cursor-pointer group">
+          <div class="w-9 h-9 rounded-lg bg-[var(--color-vintage-mint)]/20 flex items-center justify-center text-[var(--color-vintage-mint)] font-bold uppercase text-sm shrink-0 group-hover:bg-[var(--color-vintage-mint)] group-hover:text-white transition-colors">
             {{ authStore.user?.name?.substring(0, 2) || 'U?' }}
           </div>
-          <div class="min-w-0">
-            <p class="text-sm font-bold text-[var(--text-main)] truncate">{{ authStore.user?.name || 'Usuário' }}</p>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-[var(--text-main)] truncate group-hover:text-[var(--color-vintage-mint)] transition-colors">{{ authStore.user?.name || 'Usuário' }}</p>
             <p class="text-xs text-[var(--text-muted)] truncate capitalize">{{ authStore.user?.profile || '—' }}</p>
           </div>
-        </div>
+        </router-link>
         <button @click="handleLogout" class="text-sm text-[var(--color-vintage-rose)] hover:underline flex items-center gap-1 font-medium">
           <LogOut class="w-4 h-4" />
           Desconectar

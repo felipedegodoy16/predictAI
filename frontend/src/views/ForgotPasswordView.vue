@@ -91,7 +91,7 @@
                             <p
                                 class="text-[var(--text-muted)] mt-2 font-medium"
                             >
-                                Siga os passos para definir sua nova senha.
+                                Insira seu e-mail para receber uma nova senha.
                             </p>
                         </div>
                     </div>
@@ -171,121 +171,7 @@
                         </div>
 
                         <button
-                            type="submit"
-                            class="w-full group bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-70 disabled:active:scale-100"
-                            :disabled="isLoading"
-                        >
-                            <Loader2
-                                v-if="isLoading"
-                                class="w-6 h-6 animate-spin"
-                            />
-                            <div v-else class="flex items-center gap-2">
-                                Enviar Código
-                                <ArrowRight
-                                    class="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                                />
-                            </div>
-                        </button>
-                    </form>
-
-                    <!-- Step 2: Input Code -->
-                    <form
-                        v-if="step === 2"
-                        @submit.prevent="handleValidateCode"
-                        class="space-y-6"
-                    >
-                        <div
-                            class="space-y-1.5 border-b-2 border-transparent focus-within:border-[var(--color-vintage-mint)] transition-colors"
-                        >
-                            <label
-                                class="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]"
-                                >Código de 6 dígitos</label
-                            >
-                            <div class="relative flex items-center">
-                                <Key
-                                    class="w-5 h-5 absolute left-0 text-[var(--text-muted)]"
-                                />
-                                <input
-                                    v-model="code"
-                                    type="text"
-                                    required
-                                    maxlength="6"
-                                    class="w-full bg-transparent border-none py-3 pl-8 text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 focus:ring-0 focus:outline-none tracking-[0.5em] font-mono font-bold uppercase text-lg"
-                                    placeholder="A1B2C3"
-                                    :disabled="isLoading"
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            class="w-full group bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-70 disabled:active:scale-100"
-                            :disabled="isLoading || code.length < 6"
-                        >
-                            <Loader2
-                                v-if="isLoading"
-                                class="w-6 h-6 animate-spin"
-                            />
-                            <div v-else class="flex items-center gap-2">
-                                Validar Código
-                                <ArrowRight
-                                    class="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                                />
-                            </div>
-                        </button>
-                    </form>
-
-                    <!-- Step 3: New Password -->
-                    <form
-                        v-if="step === 3"
-                        @submit.prevent="handleResetPassword"
-                        class="space-y-6"
-                    >
-                        <div
-                            class="space-y-1.5 border-b-2 border-transparent focus-within:border-[var(--color-vintage-mint)] transition-colors"
-                        >
-                            <label
-                                class="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]"
-                                >Nova Senha</label
-                            >
-                            <div class="relative flex items-center">
-                                <Lock
-                                    class="w-5 h-5 absolute left-0 text-[var(--text-muted)]"
-                                />
-                                <input
-                                    v-model="newPassword"
-                                    type="password"
-                                    required
-                                    class="w-full bg-transparent border-none py-3 pl-8 text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 focus:ring-0 focus:outline-none"
-                                    placeholder="••••••••"
-                                    :disabled="isLoading"
-                                />
-                            </div>
-                        </div>
-
-                        <div
-                            class="space-y-1.5 border-b-2 border-transparent focus-within:border-[var(--color-vintage-mint)] transition-colors"
-                        >
-                            <label
-                                class="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]"
-                                >Confirmar Nova Senha</label
-                            >
-                            <div class="relative flex items-center">
-                                <Check
-                                    class="w-5 h-5 absolute left-0 text-[var(--text-muted)]"
-                                />
-                                <input
-                                    v-model="newPasswordConfirm"
-                                    type="password"
-                                    required
-                                    class="w-full bg-transparent border-none py-3 pl-8 text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 focus:ring-0 focus:outline-none"
-                                    placeholder="••••••••"
-                                    :disabled="isLoading"
-                                />
-                            </div>
-                        </div>
-
-                        <button
+                            v-if="!successMessage"
                             type="submit"
                             class="w-full group bg-[var(--color-vintage-charcoal)] dark:bg-[var(--color-vintage-paper)] text-[var(--color-vintage-cream)] dark:text-[var(--color-vintage-charcoal)] h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-70 disabled:active:scale-100"
                             :disabled="isLoading"
@@ -302,6 +188,8 @@
                             </div>
                         </button>
                     </form>
+
+
                 </div>
             </div>
         </div>
@@ -327,12 +215,9 @@ import api from '@/services/api';
 
 const router = useRouter();
 
-const step = ref(1); // 1: Email, 2: Code, 3: Password
+const step = ref(1);
 
 const email = ref('');
-const code = ref('');
-const newPassword = ref('');
-const newPasswordConfirm = ref('');
 
 const isLoading = ref(false);
 const errorMessage = ref('');
@@ -351,65 +236,16 @@ const handleRequestCode = async () => {
         const response = await api.post('/users/forgot-password/', {
             email: email.value,
         });
-        successMessage.value = 'Código enviado para ' + email.value;
-        step.value = 2;
+        successMessage.value = response.data.detail || 'Uma nova senha foi enviada para ' + email.value;
+        // Optionally redirect to login after a few seconds
+        setTimeout(() => {
+            router.push({ name: 'login' });
+        }, 5000);
     } catch (error) {
         errorMessage.value =
             error.response?.data?.detail ||
             error.response?.data?.email?.[0] ||
-            'Erro ao enviar código.';
-    } finally {
-        isLoading.value = false;
-    }
-};
-
-const handleValidateCode = async () => {
-    clearMessages();
-    isLoading.value = true;
-    try {
-        await api.post('/users/validate-reset-code/', {
-            email: email.value,
-            code: code.value.toUpperCase(),
-        });
-        successMessage.value = 'Código válido. Defina a nova senha.';
-        step.value = 3;
-    } catch (error) {
-        errorMessage.value =
-            error.response?.data?.detail || 'Código inválido ou expirado.';
-    } finally {
-        isLoading.value = false;
-    }
-};
-
-const handleResetPassword = async () => {
-    clearMessages();
-    if (newPassword.value !== newPasswordConfirm.value) {
-        errorMessage.value = 'As senhas não conferem.';
-        return;
-    }
-    if (newPassword.value.length < 8) {
-        errorMessage.value = 'A senha deve ter pelo menos 8 caracteres.';
-        return;
-    }
-
-    isLoading.value = true;
-    try {
-        await api.post('/users/reset-password-with-code/', {
-            email: email.value,
-            code: code.value.toUpperCase(),
-            new_password: newPassword.value,
-            new_password_confirm: newPasswordConfirm.value,
-        });
-        successMessage.value = 'Senha redefinida com sucesso!';
-        // Redireciona para o login após 2 segundos
-        setTimeout(() => {
-            router.push({ name: 'login' });
-        }, 2000);
-    } catch (error) {
-        errorMessage.value =
-            error.response?.data?.detail ||
-            error.response?.data?.new_password_confirm?.[0] ||
-            'Erro ao redefinir a senha.';
+            'Erro ao processar solicitação.';
     } finally {
         isLoading.value = false;
     }

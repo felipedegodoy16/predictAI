@@ -60,6 +60,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
+class MeUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name']
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -84,29 +90,3 @@ class ForgotPasswordSerializer(serializers.Serializer):
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError('Usuário com este e-mail não encontrado.')
         return value
-
-
-class ValidateResetCodeSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField(max_length=6)
-
-    def validate(self, attrs):
-        email = attrs.get('email')
-        if not User.objects.filter(email=email).exists():
-            raise serializers.ValidationError('Usuário não encontrado.')
-        return attrs
-
-
-class ResetPasswordWithCodeSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField(max_length=6)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
-    new_password_confirm = serializers.CharField(write_only=True)
-
-    def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({'new_password_confirm': 'As senhas não conferem.'})
-        email = attrs.get('email')
-        if not User.objects.filter(email=email).exists():
-            raise serializers.ValidationError('Usuário não encontrado.')
-        return attrs

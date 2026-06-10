@@ -15,10 +15,9 @@ from .serializers import (
     UserListSerializer,
     UserDetailSerializer,
     UserUpdateSerializer,
+    MeUpdateSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
-    ValidateResetCodeSerializer,
-    ResetPasswordWithCodeSerializer,
 )
 
 from .permissions import IsAdminOrManager
@@ -107,6 +106,12 @@ class MeView(APIView):
         serializer = UserDetailSerializer(request.user)
         return Response(serializer.data)
 
+    def patch(self, request):
+        serializer = MeUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -128,61 +133,21 @@ class ForgotPasswordView(APIView):
         email = serializer.validated_data['email']
         
         user = User.objects.get(email=email)
-        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         
-        PasswordResetCode.objects.create(user=user, code=code)
+        # Gerar uma nova senha aleatória (8 caracteres com letras e números)
+        new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        user.set_password(new_password)
+        user.save()
         
         try:
             send_mail(
-                subject='Código de Recuperação - PredictAI',
-                message=f'Seu código de recuperação de senha é: {code}\nEste código expira em 15 minutos.',
+                subject='Nova Senha - PredictAI',
+                message=f'Sua nova senha de acesso é: {new_password}\n\nRecomendamos que você altere esta senha no seu perfil logo após fazer o login.',
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
                 fail_silently=False,
             )
-            return Response({'detail': 'Código enviado com sucesso.'}, status=status.HTTP_200_OK)
+            return Response({'detail': 'Uma nova senha foi enviada com sucesso para o seu e-mail.'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'detail': 'Erro ao enviar e-mail. Tente novamente mais tarde.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-class ValidateResetCodeView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = ValidateResetCodeSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        code = serializer.validated_data['code']
-        
-        user = User.objects.get(email=email)
-        time_threshold = timezone.now() - timedelta(minutes=15)
-        
-        reset_code = PasswordResetCode.objects.filter(user=user, code=code, created_at__gte=time_threshold).first()
-        
-        if reset_code:
-            return Response({'detail': 'Código válido.'}, status=status.HTTP_200_OK)
-        return Response({'detail': 'Código inválido ou expirado.'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ResetPasswordWithCodeView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = ResetPasswordWithCodeSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        code = serializer.validated_data['code']
-        new_password = serializer.validated_data['new_password']
-        
-        user = User.objects.get(email=email)
-        time_threshold = timezone.now() - timedelta(minutes=15)
-        
-        reset_code = PasswordResetCode.objects.filter(user=user, code=code, created_at__gte=time_threshold).first()
-        
-        if reset_code:
-            user.set_password(new_password)
-            user.save()
-            PasswordResetCode.objects.filter(user=user).delete()
-            return Response({'detail': 'Senha alterada com sucesso.'}, status=status.HTTP_200_OK)
-            
-        return Response({'detail': 'Código inválido ou expirado.'}, status=status.HTTP_400_BAD_REQUEST)

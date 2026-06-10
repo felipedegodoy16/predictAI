@@ -58,6 +58,11 @@ const router = createRouter({
           name: 'logs',
           component: () => import('../views/LogsView.vue'),
           meta: { roles: ['administrador', 'gerente'] }
+        },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('../views/ProfileView.vue')
         }
       ]
     }
